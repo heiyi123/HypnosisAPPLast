@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { MvuBridge } from '../services/mvuBridge';
 
 interface CharacterRegistryAppProps {
   onBack: () => void;
@@ -55,8 +56,12 @@ export const CharacterRegistryApp: React.FC<CharacterRegistryAppProps> = ({ onBa
 
     setSubmitting(true);
     try {
-      // 1. 确保当前聊天有绑定世界书
-      const worldbookName = (await getChatWorldbookName('current')) ?? (await getOrCreateChatWorldbook('current'));
+      // 1. 确保使用角色卡绑定的世界书（若无，则退回当前聊天世界书）
+      const charBooks = getCharWorldbookNames('current');
+      const worldbookName =
+        charBooks.primary ??
+        charBooks.additional[0] ??
+        ((await getChatWorldbookName('current')) ?? (await getOrCreateChatWorldbook('current')));
 
       // 2. 在世界书中新增绿灯条目（人设 + 变量）
       const content = buildContent();
@@ -107,33 +112,26 @@ export const CharacterRegistryApp: React.FC<CharacterRegistryAppProps> = ({ onBa
         { render: 'debounced' },
       );
 
-      // 3. 在变量中创建该角色的变量（使用与固有角色相同的基础模板）
-      await updateVariablesWith(vars => {
-        const roles = (vars.角色 ?? {}) as Record<string, any>;
-        if (!roles[trimmedName]) {
-          roles[trimmedName] = {
-            好感度: 0,
-            警戒度: 0,
-            服从度: 0,
-            性欲: 0,
-            快感值: 0,
-            阴蒂敏感度: 100,
-            小穴敏感度: 100,
-            菊穴敏感度: 150,
-            尿道敏感度: 100,
-            乳头敏感度: 100,
-            临时催眠效果: {},
-            永久催眠效果: {},
-            阴蒂高潮次数: 0,
-            小穴高潮次数: 0,
-            菊穴高潮次数: 0,
-            尿道高潮次数: 0,
-            乳头高潮次数: 0,
-          };
-        }
-        vars.角色 = roles;
-        return vars;
-      }, { type: 'chat' });
+      // 3. 在 MVU 变量中创建该角色的变量（与固有角色模板一致）
+      await MvuBridge.createRoleIfMissing(trimmedName, {
+        好感度: 0,
+        警戒度: 0,
+        服从度: 0,
+        性欲: 0,
+        快感值: 0,
+        阴蒂敏感度: 100,
+        小穴敏感度: 100,
+        菊穴敏感度: 150,
+        尿道敏感度: 100,
+        乳头敏感度: 100,
+        临时催眠效果: {},
+        永久催眠效果: {},
+        阴蒂高潮次数: 0,
+        小穴高潮次数: 0,
+        菊穴高潮次数: 0,
+        尿道高潮次数: 0,
+        乳头高潮次数: 0,
+      });
 
       showNotice('角色已录入');
       // 可选：清空表单，保留姓名方便连录

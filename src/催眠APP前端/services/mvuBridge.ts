@@ -264,4 +264,19 @@ export const MvuBridge = {
       }
     });
   },
+
+  createRoleIfMissing: async (roleName: string, initialData: Record<string, any>) => {
+    return enqueueMvuWrite(async () => {
+      const data = await getMvuData();
+      if (!data) return false;
+      const { mvu, option } = data;
+      const roles = (_.get(mvu.stat_data, '角色') as Record<string, any>) ?? {};
+      if (Object.prototype.hasOwnProperty.call(roles, roleName)) {
+        return false;
+      }
+      _.set(mvu.stat_data, `角色.${roleName}`, initialData);
+      await Mvu.replaceMvuData(mvu, option);
+      return true;
+    });
+  },
 };
