@@ -214,56 +214,13 @@ export const CampusMapApp = ({ onBack }: { onBack: () => void }) => {
     [selectedId],
   );
 
-  // 简单可拖动：限制在屏幕中，不做边界计算，只是相对偏移
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const dragState = useRef<{ dragging: boolean; startX: number; startY: number; originX: number; originY: number }>({
-    dragging: false,
-    startX: 0,
-    startY: 0,
-    originX: 0,
-    originY: 0,
-  });
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragState.current.dragging) return;
-      const dx = e.clientX - dragState.current.startX;
-      const dy = e.clientY - dragState.current.startY;
-      setOffset({ x: dragState.current.originX + dx, y: dragState.current.originY + dy });
-    };
-    const onUp = () => {
-      dragState.current.dragging = false;
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, []);
-
-  const beginDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    dragState.current.dragging = true;
-    dragState.current.startX = e.clientX;
-    dragState.current.startY = e.clientY;
-    dragState.current.originX = offset.x;
-    dragState.current.originY = offset.y;
-  };
-
   return (
     <PageLayout title="校园地图" onBack={onBack} color="bg-slate-900">
-      <div className="relative h-full w-full">
-        <div
-          className="absolute left-1/2 top-1/2 w-[95%] max-w-none md:max-w-[420px] -translate-x-1/2 -translate-y-1/2"
-          style={{ transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}
-        >
+      <div className="relative h-full w-full overflow-hidden flex items-center justify-center px-2 pb-2">
+        <div className="w-full max-w-[420px]">
           <div className="rounded-2xl border border-slate-600/80 bg-slate-950/95 shadow-2xl overflow-hidden">
-            <div
-              className="flex items-center justify-between px-3 py-2 bg-slate-900 cursor-move select-none text-xs text-slate-200/80"
-              onMouseDown={beginDrag}
-            >
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-900 select-none text-xs text-slate-200/80">
               <span>斋明学园 · 校园地图</span>
-              <span className="text-[10px] text-slate-400">拖拽顶部可以移动</span>
             </div>
 
             <div className="px-3 pt-2 pb-3 text-[11px] text-slate-200/80">
@@ -271,99 +228,87 @@ export const CampusMapApp = ({ onBack }: { onBack: () => void }) => {
             </div>
 
             <div className="px-3 pb-3">
-              <div className="flex flex-col lg:flex-row gap-3">
-                {/* 地图画布 */}
-                <div className="flex-1 min-w-0">
-                  <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden bg-gradient-to-b from-slate-800 to-slate-950 shadow-inner">
-                    {/* 网格背景 */}
-                    <div className="absolute inset-0 opacity-20">
-                      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(148,163,184,0.35)_1px,transparent_1px)] bg-[length:20px_20px]" />
-                      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.35)_1px,transparent_1px)] bg-[length:20px_20px]" />
-                    </div>
+              {/* 地图画布 */}
+              <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden bg-gradient-to-b from-slate-800 to-slate-950 shadow-inner">
+                {/* 网格背景 */}
+                <div className="absolute inset-0 opacity-20">
+                  <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(148,163,184,0.35)_1px,transparent_1px)] bg-[length:20px_20px]" />
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.35)_1px,transparent_1px)] bg-[length:20px_20px]" />
+                </div>
 
-                    {/* 地点标记 */}
-                    {CAMPUS_LOCATIONS.map(loc => (
-                      <button
-                        key={loc.id}
-                        type="button"
-                        className={[
-                          'absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] border',
-                          loc.id === selectedId
-                            ? 'bg-slate-900 text-slate-50 border-indigo-400 shadow-lg'
-                            : 'bg-slate-900/80 text-slate-100 border-slate-500/60 hover:border-indigo-300',
-                        ].join(' ')}
-                        style={{ left: `${loc.x}%`, top: `${loc.y}%` }}
-                        onClick={() => setSelectedId(loc.id)}
-                      >
-                        <span
-                          className={[
-                            'w-2 h-2 rounded-full',
-                            loc.category === 'teach'
-                              ? 'bg-indigo-400'
-                              : loc.category === 'life'
-                                ? 'bg-pink-400'
-                                : loc.category === 'sport'
-                                  ? 'bg-emerald-400'
-                                  : 'bg-slate-100',
-                          ].join(' ')}
-                        />
-                        <span>{loc.label}</span>
-                      </button>
+                {/* 地点标记 */}
+                {CAMPUS_LOCATIONS.map(loc => (
+                  <button
+                    key={loc.id}
+                    type="button"
+                    className={[
+                      'absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] border',
+                      loc.id === selectedId
+                        ? 'bg-slate-900 text-slate-50 border-indigo-400 shadow-lg'
+                        : 'bg-slate-900/80 text-slate-100 border-slate-500/60 hover:border-indigo-300',
+                    ].join(' ')}
+                    style={{ left: `${loc.x}%`, top: `${loc.y}%` }}
+                    onClick={() => setSelectedId(loc.id)}
+                  >
+                    <span
+                      className={[
+                        'w-2 h-2 rounded-full',
+                        loc.category === 'teach'
+                          ? 'bg-indigo-400'
+                          : loc.category === 'life'
+                            ? 'bg-pink-400'
+                            : loc.category === 'sport'
+                              ? 'bg-emerald-400'
+                              : 'bg-slate-100',
+                      ].join(' ')}
+                    />
+                    <span>{loc.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* 图例 */}
+              <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-300">
+                <span className="px-2 py-0.5 rounded-full border border-indigo-400/70 bg-slate-900/70">教学区</span>
+                <span className="px-2 py-0.5 rounded-full border border-pink-400/70 bg-slate-900/70">生活区</span>
+                <span className="px-2 py-0.5 rounded-full border border-emerald-400/70 bg-slate-900/70">运动区</span>
+                <span className="px-2 py-0.5 rounded-full border border-slate-200/70 bg-slate-900/70">户外/边缘</span>
+              </div>
+
+              {/* 下方信息面板 */}
+              <div className="mt-3 rounded-xl border border-slate-600 bg-slate-950/90 p-3 flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
+                  <span
+                    className={[
+                      'self-start px-2 py-0.5 rounded-full text-[10px] border',
+                      selected.category === 'teach'
+                        ? 'border-indigo-400 text-indigo-200'
+                        : selected.category === 'life'
+                          ? 'border-pink-400 text-pink-200'
+                          : selected.category === 'sport'
+                            ? 'border-emerald-400 text-emerald-200'
+                            : 'border-slate-200 text-slate-100',
+                    ].join(' ')}
+                  >
+                    {categoryName(selected.category)}
+                  </span>
+                  <div className="text-sm font-semibold text-slate-50">{selected.name}</div>
+                  <div className="text-[11px] text-slate-300">{selected.locationHint}</div>
+                </div>
+
+                <p className="text-[11px] leading-relaxed text-slate-200">{selected.summary}</p>
+
+                {selected.highlights && selected.highlights.length > 0 && (
+                  <ul className="mt-1 space-y-1 text-[11px] text-slate-200/90 list-disc pl-4">
+                    {selected.highlights.map((h, idx) => (
+                      <li key={idx}>{h}</li>
                     ))}
-                  </div>
+                  </ul>
+                )}
 
-                  {/* 图例 */}
-                  <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-300">
-                    <span className="px-2 py-0.5 rounded-full border border-indigo-400/70 bg-slate-900/70">
-                      教学区
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full border border-pink-400/70 bg-slate-900/70">生活区</span>
-                    <span className="px-2 py-0.5 rounded-full border border-emerald-400/70 bg-slate-900/70">
-                      运动区
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full border border-slate-200/70 bg-slate-900/70">
-                      户外/边缘
-                    </span>
-                  </div>
-                </div>
-
-                {/* 右侧/下方信息面板 */}
-                <div className="w-full lg:w-[45%] min-w-[40%]">
-                  <div className="rounded-xl border border-slate-600 bg-slate-950/90 p-3 h-full flex flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                      <span
-                        className={[
-                          'self-start px-2 py-0.5 rounded-full text-[10px] border',
-                          selected.category === 'teach'
-                            ? 'border-indigo-400 text-indigo-200'
-                            : selected.category === 'life'
-                              ? 'border-pink-400 text-pink-200'
-                              : selected.category === 'sport'
-                                ? 'border-emerald-400 text-emerald-200'
-                                : 'border-slate-200 text-slate-100',
-                        ].join(' ')}
-                      >
-                        {categoryName(selected.category)}
-                      </span>
-                      <div className="text-sm font-semibold text-slate-50">{selected.name}</div>
-                      <div className="text-[11px] text-slate-300">{selected.locationHint}</div>
-                    </div>
-
-                    <p className="text-[11px] leading-relaxed text-slate-200">{selected.summary}</p>
-
-                    {selected.highlights && selected.highlights.length > 0 && (
-                      <ul className="mt-1 space-y-1 text-[11px] text-slate-200/90 list-disc pl-4">
-                        {selected.highlights.map((h, idx) => (
-                          <li key={idx}>{h}</li>
-                        ))}
-                      </ul>
-                    )}
-
-                    <p className="mt-auto pt-1 text-[10px] text-slate-400">
-                      这是示意图而非精确比例地图，只用于给玩家提供大致的空间感和代入感。
-                    </p>
-                  </div>
-                </div>
+                <p className="mt-auto pt-1 text-[10px] text-slate-400">
+                  这是示意图而非精确比例地图，只用于给玩家提供大致的空间感和代入感。
+                </p>
               </div>
             </div>
           </div>
