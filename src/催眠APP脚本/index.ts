@@ -4,6 +4,7 @@
 // 2) 按跨越天数恢复“系统._MC能量”（每天恢复“系统._MC能量上限”的 50%）
 // 3) 每天降低“系统.主角可疑度”10点，降低每个“角色.*.警戒度”10点
 // 4) 每个角色每 5 点“警戒度”，每天会增加 1 点“主角可疑度”
+// 5) 每个角色“堕落值”：每天 -1（不低于 0），≥80 时不再自然下降
 
 import _ from 'lodash';
 
@@ -227,6 +228,18 @@ async function applyDailySettlement(mvu: Mvu.MvuData, before: Mvu.MvuData): Prom
 
       const nextAlertness = Math.max(0, alertness - 10 * dayDelta);
       if (await setIfChanged(mvu, alertnessPath, nextAlertness)) changed = true;
+
+      // 堕落值：每天 -1（不低于 0），≥80 时不再自然下降
+      const corruptionPath = `${PATHS.roles}.${roleName}.堕落值`;
+      const corruption = toFiniteNumber(_.get(statAfter, corruptionPath), null);
+      if (corruption !== null) {
+        const current = Math.max(0, corruption);
+        const nextCorruption =
+          current >= 80 ? current : Math.max(0, current - dayDelta);
+        if (nextCorruption !== current && (await setIfChanged(mvu, corruptionPath, nextCorruption))) {
+          changed = true;
+        }
+      }
     }
   }
 

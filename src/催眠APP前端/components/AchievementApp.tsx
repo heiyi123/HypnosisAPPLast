@@ -1,20 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { UserResources, Achievement, Quest } from '../types';
-import { DataService } from '../services/dataService';
-import { waitForMvuReady } from '../services/mvuBridge';
 import {
-  Trophy,
-  Scroll,
   ArrowLeft,
   CheckCircle,
-  Lock,
-  X,
   Gift,
   Hourglass,
+  Lock,
+  Scroll,
   Star,
-  ChevronRight,
-  AlertCircle,
+  Trophy,
+  X
 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { DataService } from '../services/dataService';
+import { waitForMvuReady } from '../services/mvuBridge';
+import { Achievement, Quest, UserResources } from '../types';
 
 interface AchievementAppProps {
   userData: UserResources;
@@ -181,10 +179,9 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
         <button
           onClick={() => setActiveTab('ACHIEVEMENTS')}
           className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center justify-center gap-2
-            ${
-              activeTab === 'ACHIEVEMENTS'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg text-white'
-                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+            ${activeTab === 'ACHIEVEMENTS'
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg text-white'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
         >
           <Trophy size={16} /> 成就列表
@@ -192,10 +189,9 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
         <button
           onClick={() => setActiveTab('QUESTS')}
           className={`flex-1 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 flex items-center justify-center gap-2
-            ${
-              activeTab === 'QUESTS'
-                ? 'bg-gradient-to-r from-amber-600 to-orange-600 shadow-lg text-white'
-                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+            ${activeTab === 'QUESTS'
+              ? 'bg-gradient-to-r from-amber-600 to-orange-600 shadow-lg text-white'
+              : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
         >
           <Scroll size={16} /> 任务
@@ -219,12 +215,11 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
                   key={ach.id}
                   className={`
                     relative p-4 rounded-2xl border transition-all duration-300
-                    ${
-                      ach.isClaimed
-                        ? 'bg-slate-800/50 border-white/5 opacity-60'
-                        : isUnlocked
-                          ? 'bg-indigo-900/20 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
-                          : 'bg-slate-800/30 border-white/5'
+                    ${ach.isClaimed
+                      ? 'bg-slate-800/50 border-white/5 opacity-60'
+                      : isUnlocked
+                        ? 'bg-indigo-900/20 border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                        : 'bg-slate-800/30 border-white/5'
                     }
                  `}
                 >
@@ -311,14 +306,13 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
                   key={q.id}
                   className={`
                     relative p-4 rounded-2xl border transition-all duration-300
-                    ${
-                      q.status === 'COMPLETED'
-                        ? 'bg-amber-900/15 border-amber-500/25 shadow-[0_0_15px_rgba(245,158,11,0.12)]'
-                        : q.status === 'ACTIVE'
-                          ? 'bg-white/5 border-white/10'
-                          : q.status === 'CLAIMED'
-                            ? 'bg-slate-800/40 border-white/5 opacity-60'
-                            : 'bg-slate-800/30 border-white/5'
+                    ${q.status === 'COMPLETED'
+                      ? 'bg-amber-900/15 border-amber-500/25 shadow-[0_0_15px_rgba(245,158,11,0.12)]'
+                      : q.status === 'ACTIVE'
+                        ? 'bg-white/5 border-white/10'
+                        : q.status === 'CLAIMED'
+                          ? 'bg-slate-800/40 border-white/5 opacity-60'
+                          : 'bg-slate-800/30 border-white/5'
                     }
                  `}
                 >
