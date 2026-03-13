@@ -1,8 +1,8 @@
-import { Activity, AlertTriangle, Calendar, Globe, HelpCircle, Trophy, UserPlus2 } from 'lucide-react';
+import { Activity, AlertTriangle, Calendar, Globe, HelpCircle, Map, Trophy, UserPlus2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AchievementApp } from './components/AchievementApp';
 import { CharacterRegistryApp } from './components/CharacterRegistryApp';
-import { BodyStatsApp, CalendarApp, HelpApp, WipApp } from './components/CommonApps';
+import { BodyStatsApp, CalendarApp, CampusMapApp, HelpApp, WipApp } from './components/CommonApps';
 import { CustomQuestApp } from './components/CustomQuestApp';
 import { HypnoLogoSVG, HypnosisApp } from './components/HypnosisApp';
 import { StatusBar } from './components/OS/StatusBar';
@@ -191,6 +191,8 @@ const App = () => {
         return <BodyStatsApp onBack={() => setCurrentApp(AppMode.HOME)} />;
       case AppMode.CALENDAR:
         return <CalendarApp onBack={() => setCurrentApp(AppMode.HOME)} />;
+      case AppMode.MAP:
+        return <CampusMapApp onBack={() => setCurrentApp(AppMode.HOME)} />;
       case AppMode.HELP:
         return <HelpApp onBack={() => setCurrentApp(AppMode.HOME)} />;
       case AppMode.ACHIEVEMENTS: // New Route
@@ -320,6 +322,14 @@ const HomeScreen = ({
       icon: Calendar,
       color: 'bg-white text-black',
       mode: AppMode.CALENDAR,
+      disabled: false,
+    },
+    {
+      id: 'map',
+      name: '校园地图',
+      icon: Map,
+      color: 'bg-emerald-600',
+      mode: AppMode.MAP,
       disabled: false,
     },
     { id: 'help', name: '帮助', icon: HelpCircle, color: 'bg-gray-500', mode: AppMode.HELP, disabled: false },

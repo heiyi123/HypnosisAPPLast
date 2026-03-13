@@ -31,6 +31,23 @@ const PageLayout = ({ title, children, onBack, color = 'bg-gray-100' }: any) => 
 
 export const BodyStatsApp = ({ onBack }: { onBack: () => void }) => <BodyScanApp onBack={onBack} />;
 
+export const CampusMapApp = ({ onBack }: { onBack: () => void }) => (
+  <PageLayout title="校园地图" onBack={onBack} color="bg-slate-900">
+    <div className="h-full w-full flex flex-col items-center justify-start gap-3">
+      <p className="text-xs text-slate-200/80 mb-1">
+        这是斋明学园的简易俯视地图，用来帮助你在脑中构建校园的大致结构。
+      </p>
+      <div className="w-full max-w-full aspect-video rounded-2xl overflow-hidden border border-slate-600 shadow-lg bg-black">
+        <iframe
+          src="../地图/index.html"
+          title="斋明学园·校园地图"
+          className="w-full h-full border-0"
+        />
+      </div>
+    </div>
+  </PageLayout>
+);
+
 type RoleMap = Record<string, any>;
 
 function extractScalar(value: unknown): string {
