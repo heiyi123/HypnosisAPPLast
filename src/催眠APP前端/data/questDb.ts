@@ -282,49 +282,13 @@ export const QUEST_DB: QuestDefinition[] = [
     condition: '在保健体育课上和洛琪希现场做爱进行演示。',
     rewardPtPoints: 40,
   },
-   {
+  {
     id: 'quest_roxy_taste_first',
     name: '抢先一步',
     condition: '让洛琪希在和丈夫性生活之前先和你做爱。',
     rewardPtPoints: 30,
   },
-   {
-    id: 'quest_ui_library',
-    name: '图书馆请安静',
-    condition: '在图书馆有其他学生时和古关忧做爱。',
-    rewardPtPoints: 30,
-  },
-   {
-    id: 'quest_ui_smell',
-    name: '有味道',
-    condition: '让古关忧带着精液的味道活动一整天。',
-    rewardPtPoints: 30,
-  },
-   {
-    id: 'quest_rikka_deceive',
-    name: '忽悠大师',
-    condition: '不使用催眠纯靠忽悠骗小鸟游六花和你做爱。',
-    rewardPtPoints: 30,
-  },
-   {
-    id: 'quest_rikka_group',
-    name: '社团活动',
-    condition: '将小鸟游六花的社团活动变成淫趴。',
-    rewardPtPoints: 40,
-  },
-   {
-    id: 'quest_chika_union',
-    name: '欢迎来到学生会',
-    condition: '在学生会室和藤原千花做爱。',
-    rewardPtPoints: 30,
-  },
-   {
-    id: 'quest_chika_game',
-    name: '我是赢家',
-    condition: '和藤原千花进行任意游戏比赛并获胜。',
-    rewardPtPoints: 20,
-  },
-   {
+  {
     id: 'quest_sagiri_found',
     name: '不再神秘',
     condition: '找到和泉纱雾的宿舍。',

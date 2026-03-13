@@ -30,23 +30,348 @@ const PageLayout = ({ title, children, onBack, color = 'bg-gray-100' }: any) => 
 );
 
 export const BodyStatsApp = ({ onBack }: { onBack: () => void }) => <BodyScanApp onBack={onBack} />;
+type MapCategory = 'teach' | 'life' | 'sport' | 'outdoor';
 
-export const CampusMapApp = ({ onBack }: { onBack: () => void }) => (
-  <PageLayout title="校园地图" onBack={onBack} color="bg-slate-900">
-    <div className="h-full w-full flex flex-col items-center justify-start gap-3">
-      <p className="text-xs text-slate-200/80 mb-1">
-        这是斋明学园的简易俯视地图，用来帮助你在脑中构建校园的大致结构。
-      </p>
-      <div className="w-full max-w-full aspect-video rounded-2xl overflow-hidden border border-slate-600 shadow-lg bg-black">
-        <iframe
-          src="../地图/index.html"
-          title="斋明学园·校园地图"
-          className="w-full h-full border-0"
-        />
+type MapLocation = {
+  id: string;
+  name: string;
+  label: string;
+  category: MapCategory;
+  x: number;
+  y: number;
+  locationHint: string;
+  summary: string;
+  highlights?: string[];
+};
+
+const CAMPUS_LOCATIONS: MapLocation[] = [
+  {
+    id: 'main-building',
+    name: '校舍本馆',
+    label: '本馆',
+    category: 'teach',
+    x: 42,
+    y: 38,
+    locationHint: '教学区 · 校园中央偏前方',
+    summary:
+      '学园的主教学楼与行政中枢，一到五层分别是一年级到三年级教室、教职员室，以及校长室、理事长室等。大部分白天课程都会在这里进行。',
+    highlights: [
+      '屋顶平台与园艺部温室位于屋顶，是放学后约会与秘密谈话的热门地点。',
+      '三楼靠近楼梯的区域是学生会室，经常会有风纪检查或学生会会议。',
+      '一楼升降口与中央大厅，是早晚与放学人流最密集的地方。',
+    ],
+  },
+  {
+    id: 'lab-building',
+    name: '综合实验楼',
+    label: '实验楼',
+    category: 'teach',
+    x: 60,
+    y: 32,
+    locationHint: '教学区 · 本馆右侧',
+    summary:
+      '理科实验室、图书室、自习室、美术室、音乐室等都集中在这栋现代化建筑内，是文化社团与成绩优等生常驻的区域。',
+    highlights: [
+      '三楼的综合图书室与独立自习室气氛安静，适合偷听、偶遇和制造“偶然邂逅”。',
+      '二楼的理科实验室和视听室，经常会因为课程安排出现「只有少数人留下」的时间段。',
+    ],
+  },
+  {
+    id: 'canteen',
+    name: '餐饮与医疗综合馆',
+    label: '食堂·保健',
+    category: 'life',
+    x: 28,
+    y: 48,
+    locationHint: '生活区 · 本馆左下方的独立建筑',
+    summary:
+      '一楼是宽敞的学生食堂与露天咖啡区，二楼则是教职工餐厅与保健中心。中午与放学后都十分热闹。',
+    highlights: [
+      '食堂的落地窗面向中庭，可以从远处观察来往学生的动向。',
+      '校医室与保健中心位于楼上，是发生“意外”后最自然的去处。',
+    ],
+  },
+  {
+    id: 'gym',
+    name: '体育馆主馆',
+    label: '体育馆',
+    category: 'sport',
+    x: 70,
+    y: 52,
+    locationHint: '运动区 · 靠近运动场一侧',
+    summary:
+      '用于全校集会、球技大会和各类室内运动赛事的大型体育馆。一楼是主场地与器材室，二楼为观众看台与通道。',
+    highlights: [
+      '更衣室与淋浴间位于侧翼深处，动线相对隐蔽。',
+      '球技大会、体育祭等大型活动时，这里会成为全校视线的中心。',
+    ],
+  },
+  {
+    id: 'club-building',
+    name: '社团大楼（部室栋）',
+    label: '社团栋',
+    category: 'sport',
+    x: 76,
+    y: 40,
+    locationHint: '运动区 · 体育馆旁',
+    summary:
+      '集中安置各种文化社团、运动部的部室。放学后直到傍晚都是人来人往的时间段，社团招新周更是异常喧闹。',
+    highlights: [
+      '二楼多为文化社团，房门常常半掩着，是“被路过的人看到一眼”的尴尬场景制造机。',
+      '一楼连接运动场，方便运动部在练习与休息间往返。',
+    ],
+  },
+  {
+    id: 'dorm-girls',
+    name: '女生宿舍',
+    label: '女生宿',
+    category: 'life',
+    x: 20,
+    y: 26,
+    locationHint: '宿舍区 · 校园左上角',
+    summary:
+      '高规格的女生专用宿舍，管理严格但内装接近高级公寓。多数千金与有钱人家的女儿都会选择入住这里。',
+    highlights: ['宿舍区与教学楼之间有规定的通学路线，早晚都会出现固定的“人流时间”。'],
+  },
+  {
+    id: 'dorm-boys',
+    name: '男生宿舍',
+    label: '男生宿',
+    category: 'life',
+    x: 24,
+    y: 18,
+    locationHint: '宿舍区 · 靠近校园边缘',
+    summary:
+      '由于男生人数极少，男生宿舍规模不大，气氛也与女生宿舍完全不同，更像是被遗忘在角落的小据点。',
+    highlights: ['从这里前往教学楼的途中，能明显感受到自己被淹没在女生人海之中的视线差异。'],
+  },
+  {
+    id: 'gate',
+    name: '正门与林荫大道',
+    label: '正门',
+    category: 'outdoor',
+    x: 50,
+    y: 70,
+    locationHint: '户外 · 校园前端',
+    summary:
+      '带有巨大锻铁校门与石碑的正式出入口，往里是一条笔直的林荫大道，尽头连向欧式中庭与校舍本馆。',
+    highlights: [
+      '每天的登校与放学都会在这里形成“流量高峰”，是观察全校人群氛围的最佳地点。',
+      '地下停车场入口隐蔽在一侧，供教职工与大小姐们的专车使用。',
+    ],
+  },
+  {
+    id: 'field',
+    name: '运动场区域',
+    label: '运动场',
+    category: 'sport',
+    x: 80,
+    y: 64,
+    locationHint: '运动区 · 校园右下角',
+    summary:
+      '大操场、跑道、网球场、弓道场与马术练习场等运动设施集中在此，是体育课与各类比赛的主要舞台。',
+    highlights: [
+      '球技大会、体育祭、社团联合训练都会在这里发生，氛围从远处就能感受到热度。',
+      '视野开阔，黄昏时分的天空与灯光会给人一种“故事即将发生”的预感。',
+    ],
+  },
+  {
+    id: 'back-mountain',
+    name: '后山与旧校舍',
+    label: '后山',
+    category: 'outdoor',
+    x: 10,
+    y: 60,
+    locationHint: '户外 · 校园后方边缘',
+    summary:
+      '校园后侧的幽静区域，有小树林与被封锁的旧校舍。传闻中经常与“试胆大会”或都市怪谈联系在一起。',
+    highlights: [
+      '白天几乎没什么人刻意经过，夜间更是容易让人产生“只属于我们两人的空间”错觉。',
+      '旧校舍虽然被官方标注为危险区域，但总会有人偷偷摸进去。',
+    ],
+  },
+];
+
+function categoryName(c: MapCategory): string {
+  switch (c) {
+    case 'teach':
+      return '教学区';
+    case 'life':
+      return '生活区';
+    case 'sport':
+      return '运动区';
+    case 'outdoor':
+      return '户外/边缘';
+    default:
+      return '';
+  }
+}
+
+export const CampusMapApp = ({ onBack }: { onBack: () => void }) => {
+  const [selectedId, setSelectedId] = useState<string>(CAMPUS_LOCATIONS[0]?.id ?? 'main-building');
+  const selected = useMemo(
+    () => CAMPUS_LOCATIONS.find(l => l.id === selectedId) ?? CAMPUS_LOCATIONS[0],
+    [selectedId],
+  );
+
+  // 简单可拖动：限制在屏幕中，不做边界计算，只是相对偏移
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragState = useRef<{ dragging: boolean; startX: number; startY: number; originX: number; originY: number }>({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+  });
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragState.current.dragging) return;
+      const dx = e.clientX - dragState.current.startX;
+      const dy = e.clientY - dragState.current.startY;
+      setOffset({ x: dragState.current.originX + dx, y: dragState.current.originY + dy });
+    };
+    const onUp = () => {
+      dragState.current.dragging = false;
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  const beginDrag = (e: React.MouseEvent<HTMLDivElement>) => {
+    dragState.current.dragging = true;
+    dragState.current.startX = e.clientX;
+    dragState.current.startY = e.clientY;
+    dragState.current.originX = offset.x;
+    dragState.current.originY = offset.y;
+  };
+
+  return (
+    <PageLayout title="校园地图" onBack={onBack} color="bg-slate-900">
+      <div className="relative h-full w-full">
+        <div
+          className="absolute left-1/2 top-1/2 w-[95%] max-w-none md:max-w-[420px] -translate-x-1/2 -translate-y-1/2"
+          style={{ transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }}
+        >
+          <div className="rounded-2xl border border-slate-600/80 bg-slate-950/95 shadow-2xl overflow-hidden">
+            <div
+              className="flex items-center justify-between px-3 py-2 bg-slate-900 cursor-move select-none text-xs text-slate-200/80"
+              onMouseDown={beginDrag}
+            >
+              <span>斋明学园 · 校园地图</span>
+              <span className="text-[10px] text-slate-400">拖拽顶部可以移动</span>
+            </div>
+
+            <div className="px-3 pt-2 pb-3 text-[11px] text-slate-200/80">
+              这是斋明学园的简易俯视地图，用来帮助你在脑中构建校园的大致结构。
+            </div>
+
+            <div className="px-3 pb-3">
+              <div className="flex flex-col lg:flex-row gap-3">
+                {/* 地图画布 */}
+                <div className="flex-1 min-w-0">
+                  <div className="relative w-full aspect-[16/9] rounded-xl overflow-hidden bg-gradient-to-b from-slate-800 to-slate-950 shadow-inner">
+                    {/* 网格背景 */}
+                    <div className="absolute inset-0 opacity-20">
+                      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(148,163,184,0.35)_1px,transparent_1px)] bg-[length:20px_20px]" />
+                      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(148,163,184,0.35)_1px,transparent_1px)] bg-[length:20px_20px]" />
+                    </div>
+
+                    {/* 地点标记 */}
+                    {CAMPUS_LOCATIONS.map(loc => (
+                      <button
+                        key={loc.id}
+                        type="button"
+                        className={[
+                          'absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] border',
+                          loc.id === selectedId
+                            ? 'bg-slate-900 text-slate-50 border-indigo-400 shadow-lg'
+                            : 'bg-slate-900/80 text-slate-100 border-slate-500/60 hover:border-indigo-300',
+                        ].join(' ')}
+                        style={{ left: `${loc.x}%`, top: `${loc.y}%` }}
+                        onClick={() => setSelectedId(loc.id)}
+                      >
+                        <span
+                          className={[
+                            'w-2 h-2 rounded-full',
+                            loc.category === 'teach'
+                              ? 'bg-indigo-400'
+                              : loc.category === 'life'
+                                ? 'bg-pink-400'
+                                : loc.category === 'sport'
+                                  ? 'bg-emerald-400'
+                                  : 'bg-slate-100',
+                          ].join(' ')}
+                        />
+                        <span>{loc.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 图例 */}
+                  <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-slate-300">
+                    <span className="px-2 py-0.5 rounded-full border border-indigo-400/70 bg-slate-900/70">
+                      教学区
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full border border-pink-400/70 bg-slate-900/70">生活区</span>
+                    <span className="px-2 py-0.5 rounded-full border border-emerald-400/70 bg-slate-900/70">
+                      运动区
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full border border-slate-200/70 bg-slate-900/70">
+                      户外/边缘
+                    </span>
+                  </div>
+                </div>
+
+                {/* 右侧/下方信息面板 */}
+                <div className="w-full lg:w-[45%] min-w-[40%]">
+                  <div className="rounded-xl border border-slate-600 bg-slate-950/90 p-3 h-full flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className={[
+                          'self-start px-2 py-0.5 rounded-full text-[10px] border',
+                          selected.category === 'teach'
+                            ? 'border-indigo-400 text-indigo-200'
+                            : selected.category === 'life'
+                              ? 'border-pink-400 text-pink-200'
+                              : selected.category === 'sport'
+                                ? 'border-emerald-400 text-emerald-200'
+                                : 'border-slate-200 text-slate-100',
+                        ].join(' ')}
+                      >
+                        {categoryName(selected.category)}
+                      </span>
+                      <div className="text-sm font-semibold text-slate-50">{selected.name}</div>
+                      <div className="text-[11px] text-slate-300">{selected.locationHint}</div>
+                    </div>
+
+                    <p className="text-[11px] leading-relaxed text-slate-200">{selected.summary}</p>
+
+                    {selected.highlights && selected.highlights.length > 0 && (
+                      <ul className="mt-1 space-y-1 text-[11px] text-slate-200/90 list-disc pl-4">
+                        {selected.highlights.map((h, idx) => (
+                          <li key={idx}>{h}</li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <p className="mt-auto pt-1 text-[10px] text-slate-400">
+                      这是示意图而非精确比例地图，只用于给玩家提供大致的空间感和代入感。
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </PageLayout>
-);
+    </PageLayout>
+  );
+};
 
 type RoleMap = Record<string, any>;
 
