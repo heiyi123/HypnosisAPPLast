@@ -116,7 +116,7 @@ export const CharacterRegistryApp: React.FC<CharacterRegistryAppProps> = ({ onBa
       await MvuBridge.createRoleIfMissing(trimmedName, {
         好感度: 0,
         警戒度: 0,
-        服从度: 0,
+        堕落值: 0,
         性欲: 0,
         快感值: 0,
         阴蒂敏感度: 100,

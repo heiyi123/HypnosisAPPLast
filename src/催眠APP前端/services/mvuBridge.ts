@@ -153,8 +153,8 @@ export const MvuBridge = {
 
       if (await setIfChanged(mvu, '系统._MC能量', user.mcEnergy)) changed = true;
       if (await setIfChanged(mvu, '系统._MC能量上限', user.mcEnergyMax)) changed = true;
-      if (await setIfChanged(mvu, '系统.当前MC点', user.mcPoints)) changed = true;
-      if (await setIfChanged(mvu, '系统._累计消耗MC点', user.totalConsumedMc)) changed = true;
+      if (await setIfChanged(mvu, '系统.当前PT点', user.ptPoints)) changed = true;
+      if (await setIfChanged(mvu, '系统._累计消耗PT点', user.totalConsumedPt)) changed = true;
       if (await setIfChanged(mvu, '系统.持有零花钱', user.money)) changed = true;
       if (await setIfChanged(mvu, '系统.主角可疑度', user.suspicion)) changed = true;
 

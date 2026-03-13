@@ -65,7 +65,7 @@ function clampPercent(value: unknown): number | null {
 
 const STAT_ORDER: string[] = [
   '警戒度',
-  '服从度',
+  '堕落值',
   '好感度',
   '性欲',
   '快感值',
@@ -81,7 +81,7 @@ const STAT_ORDER: string[] = [
   '乳头高潮次数',
 ];
 
-const BAR_STATS = new Set(['警戒度', '服从度', '好感度', '性欲', '快感值']);
+const BAR_STATS = new Set(['警戒度', '堕落值', '好感度', '性欲', '快感值']);
 
 const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [vipUnlocked, setVipUnlocked] = useState(false);
@@ -371,7 +371,7 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <div className="flex-1">
                 <div className="text-sm font-bold">检测模块未授权</div>
                 <div className="text-xs text-white/60 mt-1 leading-relaxed">
-                  该模块属于 VIP1「角色状态可视化」。解锁后可查看警戒度、服从度、性欲、快感值等量化数据与明细项。
+                  该模块属于 VIP1「角色状态可视化」。解锁后可查看警戒度、堕落值、性欲、快感值等量化数据与明细项。
                 </div>
               </div>
             </div>
@@ -438,7 +438,7 @@ const StatRow: React.FC<{ label: string; value: unknown }> = ({ label, value }) 
   const color =
     label === '警戒度'
       ? 'from-red-500 to-amber-400'
-      : label === '服从度'
+      : label === '堕落值'
         ? 'from-emerald-400 to-cyan-400'
         : label === '好感度'
           ? 'from-pink-400 to-rose-400'
@@ -1046,7 +1046,10 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <div>每增加 5 点警戒度，会让「主角可疑度」每天自然增加 1 点。</div>
               </div>
             </HelpSection>
-            <HelpSection title="服从度">在非催眠状态下调教会增加，表示角色在意识清醒时对主角的服从程度。</HelpSection>
+            <HelpSection title="堕落值">
+              在催眠 APP 生效期间被进行的性爱与背德行为在「本轮 APP 操作」结束时结算，按本次行为整体增加 0～3 点。
+              长时间不使用 APP 时，堕落值会通过脚本每天自然降低 1 点（不低于 0），当堕落值达到 80 及以上时不再自然下降。
+            </HelpSection>
             <HelpSection title="主角可疑度">
               在社会看来主角有多可疑。肆无忌惮使用催眠 APP 会增加（例如被多人目击，或直接用催眠获取金钱）。每天自然减少
               10 点。

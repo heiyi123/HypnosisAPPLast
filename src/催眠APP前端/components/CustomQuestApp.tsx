@@ -54,7 +54,7 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
       const result = await DataService.createCustomQuest({
         name: trimmedTitle,
         condition: trimmedDesc,
-        rewardMcPoints: reward,
+        rewardPtPoints: reward,
       });
       if (!result.success) {
         showNotice(result.message || '发布失败，请稍后再试');

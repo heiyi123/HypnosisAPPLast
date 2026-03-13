@@ -29,10 +29,10 @@ export function getSubscriptionUnlockThreshold(tier: SubscriptionTier): number {
 export function canSubscribeTier(ctx: {
   tier: SubscriptionTier;
   debugEnabled: boolean;
-  totalConsumedMc: number;
+  totalConsumedPt: number;
 }): boolean {
   if (ctx.debugEnabled) return true;
-  return ctx.totalConsumedMc >= getSubscriptionUnlockThreshold(ctx.tier);
+  return ctx.totalConsumedPt >= getSubscriptionUnlockThreshold(ctx.tier);
 }
 
 export function isSubscriptionActive(ctx: AccessContext): boolean {

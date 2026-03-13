@@ -586,7 +586,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       }
     }
 
-    if (currency === 'MC_POINTS') return { energy: 0, points: amount };
+    if (currency === 'PT_POINTS') return { energy: 0, points: amount };
     return { energy: amount, points: 0 };
   };
 
@@ -632,7 +632,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   );
 
   const canSubscribeTier = (tier: 'VIP1' | 'VIP2' | 'VIP3' | 'VIP4' | 'VIP5') =>
-    DataService.canSubscribeTier(tier, { debugEnabled, totalConsumedMc: userData.totalConsumedMc });
+    DataService.canSubscribeTier(tier, { debugEnabled, totalConsumedPt: userData.totalConsumedPt });
 
   const remainingSubscriptionText = useMemo(() => {
     if (debugEnabled) return 'DEBUG 已解锁';
@@ -650,7 +650,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   }, [debugEnabled, nowVirtualMinutes, subscription]);
 
   const missingEnergy = Math.max(0, totalEnergyCost - userData.mcEnergy);
-  const missingPoints = Math.max(0, totalPointsCost - userData.mcPoints);
+  const missingPoints = Math.max(0, totalPointsCost - userData.ptPoints);
 
   // --- Handlers ---
 
@@ -707,8 +707,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       money: 999999,
       mcEnergy: 999999,
       mcEnergyMax: 999999,
-      mcPoints: 999999,
-      totalConsumedMc: 999999,
+      ptPoints: 999999,
+      totalConsumedPt: 999999,
     });
   };
 
@@ -805,13 +805,13 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       `启动催眠 ${duration}分钟（-${totalEnergyCost} MC${totalPointsCost > 0 ? `, -${totalPointsCost} PT` : ''}）`,
     );
     const newEnergy = Math.max(0, userData.mcEnergy - totalEnergyCost);
-    const newPoints = Math.max(0, userData.mcPoints - totalPointsCost);
-    const newTotalConsumed = userData.totalConsumedMc + totalEnergyCost + totalPointsCost;
+    const newPoints = Math.max(0, userData.ptPoints - totalPointsCost);
+    const newTotalConsumed = userData.totalConsumedPt + totalEnergyCost + totalPointsCost;
     try {
       const persisted = await DataService.updateResources({
         mcEnergy: newEnergy,
-        mcPoints: newPoints,
-        totalConsumedMc: newTotalConsumed,
+        ptPoints: newPoints,
+        totalConsumedPt: newTotalConsumed,
       });
       onUpdateUser(persisted);
     } catch (err) {
@@ -819,8 +819,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       onUpdateUser({
         ...userData,
         mcEnergy: newEnergy,
-        mcPoints: newPoints,
-        totalConsumedMc: newTotalConsumed,
+        ptPoints: newPoints,
+        totalConsumedPt: newTotalConsumed,
       });
     }
 
@@ -908,25 +908,25 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   const purchaseMaxEnergy = async (desiredAmount: number) => {
     const amount = Math.floor(desiredAmount);
     if (!Number.isFinite(amount) || amount <= 0) return;
-    if (userData.mcPoints < amount) return;
+    if (userData.ptPoints < amount) return;
 
-    const nextPoints = userData.mcPoints - amount;
+    const nextPoints = userData.ptPoints - amount;
     const nextEnergyMax = userData.mcEnergyMax + amount;
-    const nextTotalConsumed = userData.totalConsumedMc + amount;
+    const nextTotalConsumed = userData.totalConsumedPt + amount;
     try {
       const persisted = await DataService.updateResources({
-        mcPoints: nextPoints,
+        ptPoints: nextPoints,
         mcEnergyMax: nextEnergyMax,
-        totalConsumedMc: nextTotalConsumed,
+        totalConsumedPt: nextTotalConsumed,
       });
       onUpdateUser(persisted);
     } catch (err) {
       console.warn('[HypnoOS] 提升能量上限持久化失败', err);
       onUpdateUser({
         ...userData,
-        mcPoints: nextPoints,
+        ptPoints: nextPoints,
         mcEnergyMax: nextEnergyMax,
-        totalConsumedMc: nextTotalConsumed,
+        totalConsumedPt: nextTotalConsumed,
       });
     }
     void MvuBridge.appendThisTurnAppOperationLog(`提升能量上限 +${amount}（-${amount} PT）`);
@@ -940,11 +940,11 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     const costMoney = unitPrice * amount;
     if (userData.money < costMoney) return;
 
-    const nextPoints = userData.mcPoints + amount;
+    const nextPoints = userData.ptPoints + amount;
     const nextMoney = userData.money - costMoney;
     try {
       const persisted = await DataService.updateResources({
-        mcPoints: nextPoints,
+        ptPoints: nextPoints,
         money: nextMoney,
       });
       onUpdateUser(persisted);
@@ -952,7 +952,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       console.warn('[HypnoOS] 充值点数持久化失败', err);
       onUpdateUser({
         ...userData,
-        mcPoints: nextPoints,
+        ptPoints: nextPoints,
         money: nextMoney,
       });
     }
@@ -965,17 +965,17 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     const tierFeatures = features.filter(f => f.tier === tierConfig.tier);
     if (tierFeatures.length === 0) return null;
 
-    const isLocked = !debugEnabled && userData.totalConsumedMc < tierConfig.unlockThreshold;
+    const isLocked = !debugEnabled && userData.totalConsumedPt < tierConfig.unlockThreshold;
     const progressPercent =
       tierConfig.unlockThreshold === 0
         ? 100
-        : Math.min(100, (userData.totalConsumedMc / tierConfig.unlockThreshold) * 100);
+        : Math.min(100, (userData.totalConsumedPt / tierConfig.unlockThreshold) * 100);
 
     const formatFeatureCost = (feature: HypnosisFeature) => {
-      const currency = feature.costCurrency === 'MC_POINTS' ? 'PT' : 'MC';
+      const currency = feature.costCurrency === 'PT_POINTS' ? 'PT' : 'MC';
       if (feature.id === 'vip1_stats') return '订阅后自动解锁';
       if (feature.id === 'vip1_temp_sensitivity') return `每点敏感度: 2 ${currency}`;
-      if (feature.id === 'vip1_estrus') return `每点发情值: ${feature.costValue} ${currency}`;
+      if (feature.id === 'vip1_estrus') return `每点性欲: ${feature.costValue} ${currency}`;
       if (feature.id === 'vip1_memory_erase') return `每分钟记忆: ${feature.costValue} ${currency}`;
       if (feature.id === 'vip4_closed_space_common_sense') return `每人每分钟: ${feature.costValue} ${currency}`;
       return feature.costType === 'ONE_TIME'
@@ -1006,7 +1006,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
               ></div>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {Math.floor(userData.totalConsumedMc)} / {tierConfig.unlockThreshold} 已消耗
+              {Math.floor(userData.totalConsumedPt)} / {tierConfig.unlockThreshold} 已消耗
             </p>
           </div>
         )}
@@ -1076,7 +1076,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                           e.stopPropagation();
                           void purchaseFeature(feature);
                         }}
-                        disabled={userData.mcPoints < purchasePricePoints}
+                        disabled={userData.ptPoints < purchasePricePoints}
                         data-hypno-purchase={feature.id}
                         className={[
                           'text-[10px] px-3 py-1.5 rounded-xl font-extrabold tracking-wide select-none',
@@ -1085,7 +1085,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                           'shadow-[0_6px_18px_rgba(245,158,11,0.22)]',
                           'transition-transform transition-shadow duration-150',
                           'focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70',
-                          userData.mcPoints < purchasePricePoints
+                          userData.ptPoints < purchasePricePoints
                             ? 'opacity-50 cursor-not-allowed grayscale'
                             : 'hover:shadow-[0_10px_26px_rgba(245,158,11,0.35)] active:scale-[0.97] cursor-pointer',
                           purchaseShakeFeatureId === feature.id ? 'hypno-shake' : '',
@@ -1121,8 +1121,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                       const current = typeof currentRaw === 'number' && Number.isFinite(currentRaw) ? currentRaw : '';
                       const cost = getFeatureCost(feature);
                       const currency = feature.costCurrency ?? 'MC_ENERGY';
-                      const computed = currency === 'MC_POINTS' ? cost.points : cost.energy;
-                      const currencyLabel = currency === 'MC_POINTS' ? 'PT' : 'MC';
+                      const computed = currency === 'PT_POINTS' ? cost.points : cost.energy;
+                      const currencyLabel = currency === 'PT_POINTS' ? 'PT' : 'MC';
                       return (
                         <div className="mt-3 grid grid-cols-2 gap-2 items-end">
                           <label className="col-span-1">
@@ -1258,7 +1258,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
             {/* Right: Points */}
             <div className="flex flex-col items-end min-w-[50px]">
-              <span className="text-white font-bold text-lg leading-none">{userData.mcPoints}</span>
+              <span className="text-white font-bold text-lg leading-none">{userData.ptPoints}</span>
               <span className="text-[9px] text-gray-500 uppercase tracking-wider">PTS</span>
             </div>
           </div>
@@ -1286,7 +1286,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
             <div className="grid grid-cols-3 gap-2 mb-4">
               <div className="bg-black/30 rounded-lg p-2 text-center border border-white/5">
                 <div className="text-[10px] text-gray-400 mb-1">累计消耗</div>
-                <div className="text-sm font-semibold text-white">{Math.floor(userData.totalConsumedMc)}</div>
+                <div className="text-sm font-semibold text-white">{Math.floor(userData.totalConsumedPt)}</div>
               </div>
               <div className="bg-black/30 rounded-lg p-2 text-center border border-white/5">
                 <div className="text-[10px] text-gray-400 mb-1">可疑度</div>
@@ -1354,7 +1354,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                 {/* Buy Max Energy */}
                 <button
                   onClick={() => void purchaseMaxEnergy(quickSupplyQty)}
-                  disabled={userData.mcPoints < quickSupplyQty}
+                  disabled={userData.ptPoints < quickSupplyQty}
                   className="flex flex-col items-start bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/30 p-2 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="flex justify-between w-full mb-1">
@@ -1374,7 +1374,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                 className="w-full flex justify-between items-center bg-white/5 hover:bg-white/10 p-2 rounded-lg border border-white/5 transition-colors active:scale-[0.98]"
               >
                 <span className="text-xs text-gray-300 flex items-center gap-2">
-                  <RefreshCcw size={12} /> 充值 {quickSupplyQty} MC点数
+                  <RefreshCcw size={12} /> 充值 {quickSupplyQty} PT点数
                 </span>
                 <span className="text-xs font-bold text-yellow-400">¥{(quickSupplyQty * 1000).toLocaleString()}</span>
               </button>
@@ -1524,7 +1524,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
           </span>
           <span>
             当前可用: {Math.floor(userData.mcEnergy)} MC
-            {totalPointsCost > 0 ? `, ${userData.mcPoints} PT` : ''}
+            {totalPointsCost > 0 ? `, ${userData.ptPoints} PT` : ''}
           </span>
         </div>
       </div>
@@ -1562,13 +1562,13 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
                       const nextMoney = userData.money - topUpCost;
                       const nextEnergy = Math.min(userData.mcEnergyMax, userData.mcEnergy + missingEnergy);
-                      const nextPoints = userData.mcPoints + missingPoints;
+                      const nextPoints = userData.ptPoints + missingPoints;
 
                       try {
                         const persisted = await DataService.updateResources({
                           money: nextMoney,
                           mcEnergy: nextEnergy,
-                          mcPoints: nextPoints,
+                          ptPoints: nextPoints,
                         });
                         onUpdateUser(persisted);
                       } catch (err) {
@@ -1577,7 +1577,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                           ...userData,
                           money: nextMoney,
                           mcEnergy: nextEnergy,
-                          mcPoints: nextPoints,
+                          ptPoints: nextPoints,
                         });
                       }
 

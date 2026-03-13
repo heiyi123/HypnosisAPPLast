@@ -13,8 +13,8 @@ import { AppMode, UserResources } from './types';
 const FALLBACK_USER_DATA: UserResources = {
   mcEnergy: 25,
   mcEnergyMax: 25,
-  mcPoints: 25,
-  totalConsumedMc: 0,
+  ptPoints: 25,
+  totalConsumedPt: 0,
   money: 6000,
   suspicion: 0,
 };

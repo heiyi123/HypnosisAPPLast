@@ -19,8 +19,8 @@ const CHAT_OPTION = { type: 'chat' } as const;
 const DEFAULT_USER_DATA: UserResources = {
   mcEnergy: 25,
   mcEnergyMax: 25,
-  mcPoints: 25,
-  totalConsumedMc: 0,
+  ptPoints: 25,
+  totalConsumedPt: 0,
   money: 6000,
   suspicion: 0,
 };
@@ -85,13 +85,13 @@ const FEATURES: HypnosisFeature[] = [
   {
     id: 'vip1_estrus',
     title: '发情',
-    description: '强制被催眠者发情.',
+    description: '强制提升被催眠者性欲.',
     tier: 'VIP1',
     costType: 'ONE_TIME',
     costValue: 1,
     costCurrency: 'MC_ENERGY',
     isEnabled: false,
-    notePlaceholder: '输入要增加的发情值',
+    notePlaceholder: '输入要增加的性欲',
   },
   {
     id: 'vip1_memory_erase',
@@ -293,7 +293,7 @@ const FEATURES: HypnosisFeature[] = [
     tier: 'VIP4',
     costType: 'ONE_TIME',
     costValue: 300,
-    costCurrency: 'MC_POINTS',
+    costCurrency: 'PT_POINTS',
     isEnabled: false,
     notePlaceholder: '输入排泄条件...',
   },
@@ -491,7 +491,7 @@ const STORE_SCHEMA: z.ZodType<PersistedStore> = z
           id: z.string(),
           name: z.string(),
           condition: z.string(),
-          rewardMcPoints: z.coerce.number(),
+          rewardPtPoints: z.coerce.number(),
         }),
       )
       .default([]),
@@ -525,6 +525,18 @@ function normalizeSystemAliases(systemRaw: Record<string, any>) {
   if (existingEnergyMax === null) {
     const mcEnergyMax = toFiniteNumber(systemRaw.MC能量上限);
     if (mcEnergyMax !== null) systemRaw._MC能量上限 = mcEnergyMax;
+  }
+
+  // 迁移：旧变量名 当前MC点 / _累计消耗MC点 → 当前PT点 / _累计消耗PT点
+  const existingPt = toFiniteNumber(systemRaw.当前PT点);
+  if (existingPt === null) {
+    const oldMc = toFiniteNumber(systemRaw.当前MC点);
+    if (oldMc !== null) systemRaw.当前PT点 = oldMc;
+  }
+  const existingConsumedPt = toFiniteNumber(systemRaw._累计消耗PT点);
+  if (existingConsumedPt === null) {
+    const oldConsumed = toFiniteNumber(systemRaw._累计消耗MC点);
+    if (oldConsumed !== null) systemRaw._累计消耗PT点 = oldConsumed;
   }
   return systemRaw;
 }
@@ -626,8 +638,8 @@ const SYSTEM_SCHEMA: z.ZodType<SystemWithStore> = z
   .object({
     _MC能量: z.coerce.number().default(DEFAULT_USER_DATA.mcEnergy),
     _MC能量上限: z.coerce.number().default(DEFAULT_USER_DATA.mcEnergyMax),
-    当前PT点: z.coerce.number().default(DEFAULT_USER_DATA.mcPoints),
-    _累计消耗PT点: z.coerce.number().default(DEFAULT_USER_DATA.totalConsumedMc),
+    当前PT点: z.coerce.number().default(DEFAULT_USER_DATA.ptPoints),
+    _累计消耗PT点: z.coerce.number().default(DEFAULT_USER_DATA.totalConsumedPt),
     持有零花钱: z.coerce.number().default(DEFAULT_USER_DATA.money),
     主角可疑度: z.coerce.number().default(DEFAULT_USER_DATA.suspicion),
     当前地点: z.string().optional(),
@@ -640,8 +652,8 @@ function systemToUserResources(system: SystemWithStore): UserResources {
   return {
     mcEnergy: Math.max(0, system._MC能量),
     mcEnergyMax: Math.max(0, system._MC能量上限),
-    mcPoints: Math.max(0, system.当前PT点),
-    totalConsumedMc: Math.max(0, system._累计消耗PT点),
+    ptPoints: Math.max(0, system.当前PT点),
+    totalConsumedPt: Math.max(0, system._累计消耗PT点),
     money: Math.max(0, system.持有零花钱),
     suspicion: Math.max(0, system.主角可疑度),
   };
@@ -675,28 +687,28 @@ const STATIC_ACHIEVEMENTS: Array<Omit<Achievement, 'isClaimed'>> = [
     id: 'ach_newbie',
     title: '初次接触',
     description: '累计消耗超过 10 点 MC 能量。',
-    rewardMcPoints: 5,
-    checkCondition: u => u.totalConsumedMc >= 10,
+    rewardPtPoints: 5,
+    checkCondition: u => u.totalConsumedPt >= 10,
   },
   {
     id: 'ach_vip2',
     title: '进阶会员',
     description: '解锁 VIP 2 权限 (累计消耗 100 MC)。',
-    rewardMcPoints: 20,
-    checkCondition: u => u.totalConsumedMc >= 100,
+    rewardPtPoints: 20,
+    checkCondition: u => u.totalConsumedPt >= 100,
   },
   {
     id: 'ach_rich',
     title: '资金充裕',
     description: '持有金钱超过 50,000 円。',
-    rewardMcPoints: 10,
+    rewardPtPoints: 10,
     checkCondition: u => u.money >= 50000,
   },
   {
     id: 'ach_sus',
     title: '隐秘行动',
     description: '将可疑度控制在 5% 以下。',
-    rewardMcPoints: 50,
+    rewardPtPoints: 50,
     checkCondition: u => u.suspicion <= 5,
   },
 ];
@@ -710,7 +722,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
     id: 'ach_first_hypnosis',
     title: '首次使用催眠',
     description: '首次启动催眠流程。',
-    rewardMcPoints: 15,
+    rewardPtPoints: 15,
     checkCondition: () => Boolean(store.hasUsedHypnosis),
   });
 
@@ -720,7 +732,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
       id: makeAchievementId('ach_suspicion', String(t)),
       title: `主角可疑度达到 ${t}`,
       description: `主角可疑度达到 ${t}%（系统.主角可疑度）`,
-      rewardMcPoints: t,
+      rewardPtPoints: t,
       checkCondition: () => suspicion >= t,
     });
   }
@@ -736,7 +748,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
       id: makeAchievementId('ach_energy_max', String(t)),
       title: `MC能量上限达到 ${t}`,
       description: `MC能量上限达到 ${t}（系统._MC能量上限）`,
-      rewardMcPoints: reward,
+      rewardPtPoints: reward,
       checkCondition: () => energyMax >= t,
     });
   }
@@ -751,21 +763,21 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
     const roleData = roleDataRaw as Record<string, any>;
 
     const guard = toFiniteNumber(roleData['警戒度']) ?? 0;
-    const obey = toFiniteNumber(roleData['服从度']) ?? 0;
+    const obey = toFiniteNumber(roleData['堕落值']) ?? 0;
 
     for (const t of percentThresholds) {
       achievements.push({
         id: makeAchievementId('ach_role_guard', roleName, String(t)),
         title: `${roleName} 警戒度达到 ${t}`,
         description: `${roleName} 的警戒度达到 ${t}（角色.${roleName}.警戒度）`,
-        rewardMcPoints: t,
+        rewardPtPoints: t,
         checkCondition: () => guard >= t,
       });
       achievements.push({
         id: makeAchievementId('ach_role_obey', roleName, String(t)),
-        title: `${roleName} 服从度达到 ${t}`,
-        description: `${roleName} 的服从度达到 ${t}（角色.${roleName}.服从度）`,
-        rewardMcPoints: t,
+        title: `${roleName} 堕落值达到 ${t}`,
+        description: `${roleName} 的堕落值达到 ${t}（角色.${roleName}.堕落值）`,
+        rewardPtPoints: t,
         checkCondition: () => obey >= t,
       });
     }
@@ -779,7 +791,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
           id: makeAchievementId('ach_sensitivity', roleName, key, String(t)),
           title: `${roleName}·${key} ≥ ${t}`,
           description: `${roleName} 的 ${key} 达到 ${t}（角色.${roleName}.${key}）`,
-          rewardMcPoints: 20,
+          rewardPtPoints: 20,
           checkCondition: () => value >= t,
         });
       }
@@ -794,7 +806,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
           id: makeAchievementId('ach_orgasm', roleName, key, String(t)),
           title: `${roleName}·${key} ≥ ${t}`,
           description: `${roleName} 的 ${key} 达到 ${t}（角色.${roleName}.${key}）`,
-          rewardMcPoints: 20,
+          rewardPtPoints: 20,
           checkCondition: () => value >= t,
         });
       }
@@ -870,8 +882,8 @@ export const DataService = {
 
   getSubscriptionUnlockThreshold: (tier: SubscriptionTier): number => getSubscriptionUnlockThreshold(tier),
 
-  canSubscribeTier: (tier: SubscriptionTier, ctx: { debugEnabled: boolean; totalConsumedMc: number }): boolean =>
-    canSubscribeTier({ tier, debugEnabled: ctx.debugEnabled, totalConsumedMc: ctx.totalConsumedMc }),
+  canSubscribeTier: (tier: SubscriptionTier, ctx: { debugEnabled: boolean; totalConsumedPt: number }): boolean =>
+    canSubscribeTier({ tier, debugEnabled: ctx.debugEnabled, totalConsumedPt: ctx.totalConsumedPt }),
 
   isSubscriptionActive: (ctx: AccessContext): boolean => isSubscriptionActive(ctx),
 
@@ -908,8 +920,8 @@ export const DataService = {
         const { system, store } = normalizeChatVariables(vars);
         system._MC能量 = user.mcEnergy;
         system._MC能量上限 = user.mcEnergyMax;
-        system.当前PT点 = user.mcPoints;
-        system._累计消耗PT点 = user.totalConsumedMc;
+        system.当前PT点 = user.ptPoints;
+        system._累计消耗PT点 = user.totalConsumedPt;
         system.持有零花钱 = user.money;
         system.主角可疑度 = user.suspicion;
         system._hypnoos = store;
@@ -1099,12 +1111,12 @@ export const DataService = {
     if (storeBefore.purchases?.[id]) return { ok: false, message: '已购买' };
 
     const user = await DataService.getUserData();
-    if (user.mcPoints < price) return { ok: false, message: `MC点不足：需要 ${price} PT` };
+    if (user.ptPoints < price) return { ok: false, message: `PT点不足：需要 ${price} PT` };
 
     await updateStoreWith(store => ({ ...store, purchases: { ...store.purchases, [id]: true } }));
     const nextUser = await DataService.updateResources({
-      mcPoints: user.mcPoints - price,
-      totalConsumedMc: user.totalConsumedMc + price,
+      ptPoints: user.ptPoints - price,
+      totalConsumedPt: user.totalConsumedPt + price,
     });
 
     return { ok: true, user: nextUser };
@@ -1125,8 +1137,8 @@ export const DataService = {
     const merged: UserResources = {
       mcEnergy: Math.max(0, draft.mcEnergy),
       mcEnergyMax: Math.max(0, draft.mcEnergyMax),
-      mcPoints: Math.max(0, draft.mcPoints),
-      totalConsumedMc: Math.max(0, draft.totalConsumedMc),
+      ptPoints: Math.max(0, draft.ptPoints),
+      totalConsumedPt: Math.max(0, draft.totalConsumedPt),
       money: Math.max(0, draft.money),
       suspicion: Math.max(0, draft.suspicion),
     };
@@ -1134,8 +1146,8 @@ export const DataService = {
       const { system, store } = normalizeChatVariables(vars);
       system._MC能量 = merged.mcEnergy;
       system._MC能量上限 = merged.mcEnergyMax;
-      system.当前PT点 = merged.mcPoints;
-      system._累计消耗PT点 = merged.totalConsumedMc;
+      system.当前PT点 = merged.ptPoints;
+      system._累计消耗PT点 = merged.totalConsumedPt;
       system.持有零花钱 = merged.money;
       system.主角可疑度 = merged.suspicion;
       system._hypnoos = store;
@@ -1195,7 +1207,7 @@ export const DataService = {
           id: q.id,
           title: q.name,
           description: q.condition,
-          rewardMcPoints: q.rewardMcPoints,
+          rewardPtPoints: q.rewardPtPoints,
           status: 'CLAIMED' as QuestStatus,
         };
       }
@@ -1207,7 +1219,7 @@ export const DataService = {
         id: q.id,
         title: q.name,
         description: q.condition,
-        rewardMcPoints: q.rewardMcPoints,
+        rewardPtPoints: q.rewardPtPoints,
         status: completed
           ? ('COMPLETED' as QuestStatus)
           : active
@@ -1232,8 +1244,8 @@ export const DataService = {
     const user = await DataService.getUserData();
     if (!ach.checkCondition(user)) return { success: false, newPoints: currentPoints };
 
-    const newPoints = currentPoints + ach.rewardMcPoints;
-    await DataService.updateResources({ mcPoints: newPoints });
+    const newPoints = currentPoints + ach.rewardPtPoints;
+    await DataService.updateResources({ ptPoints: newPoints });
     await updateStoreWith(s => ({ ...s, achievements: { ...s.achievements, [id]: true } }));
     return { success: true, newPoints };
   },
@@ -1304,8 +1316,8 @@ export const DataService = {
     if (!taskState || typeof taskState !== 'object' || taskState.已完成 !== true)
       return { success: false, newPoints: currentPoints };
 
-    const newPoints = currentPoints + def.rewardMcPoints;
-    await DataService.updateResources({ mcPoints: newPoints });
+    const newPoints = currentPoints + def.rewardPtPoints;
+    await DataService.updateResources({ ptPoints: newPoints });
     await updateStoreWith(s => ({ ...s, quests: { ...s.quests, [id]: 'CLAIMED' } }));
     await MvuBridge.deleteTask(def.name);
     return { success: true, newPoints };
@@ -1314,11 +1326,11 @@ export const DataService = {
   createCustomQuest: async (input: {
     name: string;
     condition: string;
-    rewardMcPoints: number;
+    rewardPtPoints: number;
   }): Promise<{ success: boolean; message?: string; newMoney?: number }> => {
     const trimmedName = input.name.trim();
     const trimmedCondition = input.condition.trim();
-    const reward = Math.floor(input.rewardMcPoints);
+    const reward = Math.floor(input.rewardPtPoints);
     if (!trimmedName) return { success: false, message: '请填写任务名称' };
     if (!trimmedCondition) return { success: false, message: '请填写任务内容' };
     if (!Number.isFinite(reward) || reward <= 0) return { success: false, message: '奖励 PT 必须为正整数' };
@@ -1344,7 +1356,7 @@ export const DataService = {
         id,
         name: trimmedName,
         condition: trimmedCondition,
-        rewardMcPoints: reward,
+        rewardPtPoints: reward,
       };
       return {
         ...store,

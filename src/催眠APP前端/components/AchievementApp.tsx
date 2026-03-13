@@ -92,9 +92,9 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
     // Client-side validation using passed userData
     if (!ach.checkCondition(userData)) return;
 
-    const result = await DataService.claimAchievement(ach.id, userData.mcPoints);
+    const result = await DataService.claimAchievement(ach.id, userData.ptPoints);
     if (result.success) {
-      onUpdateUser({ ...userData, mcPoints: result.newPoints });
+      onUpdateUser({ ...userData, ptPoints: result.newPoints });
       setAchievements(prev => prev.map(a => (a.id === ach.id ? { ...a, isClaimed: true } : a)));
     }
   };
@@ -126,14 +126,14 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
   };
 
   const handleClaimQuest = async (quest: Quest) => {
-    const result = await DataService.claimQuest(quest.id, userData.mcPoints);
+    const result = await DataService.claimQuest(quest.id, userData.ptPoints);
     if (!result.success) {
       setNotice('任务尚未完成');
       setTimeout(() => setNotice(null), 2000);
       return;
     }
-    onUpdateUser({ ...userData, mcPoints: result.newPoints });
-    setNotice(`任务完成：+${quest.rewardMcPoints} PT`);
+    onUpdateUser({ ...userData, ptPoints: result.newPoints });
+    setNotice(`任务完成：+${quest.rewardPtPoints} PT`);
     setTimeout(() => setNotice(null), 2000);
     requestRefresh();
   };
@@ -172,7 +172,7 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
         </div>
         <div className="flex items-center gap-1.5 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
           <Star size={14} className="text-amber-400 fill-amber-400" />
-          <span className="text-sm font-bold text-amber-100">{userData.mcPoints}</span>
+          <span className="text-sm font-bold text-amber-100">{userData.ptPoints}</span>
         </div>
       </div>
 
@@ -255,11 +255,11 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
                         onClick={() => handleClaimAchievement(ach)}
                         className="bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-lg flex items-center gap-1 animate-pulse"
                       >
-                        <Gift size={12} />领 {ach.rewardMcPoints} PT
+                        <Gift size={12} />领 {ach.rewardPtPoints} PT
                       </button>
                     ) : (
                       <div className="flex flex-col items-end">
-                        <span className="text-xs font-bold text-indigo-400/50">+{ach.rewardMcPoints} PT</span>
+                        <span className="text-xs font-bold text-indigo-400/50">+{ach.rewardPtPoints} PT</span>
                       </div>
                     )}
                   </div>
@@ -333,7 +333,7 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
                           </span>
                         </h3>
                         <p className="text-xs text-gray-400 mt-1 pr-4">完成条件：{q.description}</p>
-                        <div className="text-[10px] text-amber-200/80 mt-2 font-bold">奖励：+{q.rewardMcPoints} PT</div>
+                        <div className="text-[10px] text-amber-200/80 mt-2 font-bold">奖励：+{q.rewardPtPoints} PT</div>
                       </div>
                     </div>
 
