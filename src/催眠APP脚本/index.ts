@@ -247,8 +247,32 @@ async function applyDailySettlement(mvu: Mvu.MvuData, before: Mvu.MvuData): Prom
   return changed;
 }
 
-/** 前端界面 URL：与脚本同源时自动推导（脚本在 .../催眠APP脚本/index.js，前端在 .../催眠APP前端/index.html），否则需在脚本变量中设置 催眠APP前端URL */
+type WinWithUrl = Window & { __催眠APP前端URL?: string };
+
+/** 从某 window 上读取 __催眠APP前端URL */
+function readFrontendUrlFromWin(w: WinWithUrl | null | undefined): string {
+  try {
+    const url = (w && typeof (w as unknown as { __催眠APP前端URL?: string }).__催眠APP前端URL === 'string')
+      ? (w as unknown as { __催眠APP前端URL: string }).__催眠APP前端URL.trim()
+      : '';
+    return url || '';
+  } catch {
+    return '';
+  }
+}
+
+/** 前端界面 URL：优先读全局 __催眠APP前端URL（含 parent/top，兼容粘贴加载器与脚本不在同一 window），否则读脚本变量，最后同源推导 */
 function getHypnosisAppFrontendUrl(): string {
+  try {
+    const w = typeof window !== 'undefined' ? window : null;
+    const cand = [w, w?.parent, w?.top].filter(Boolean);
+    for (const win of cand) {
+      const url = readFrontendUrlFromWin(win as WinWithUrl);
+      if (url) return url;
+    }
+  } catch {
+    // ignore
+  }
   try {
     const vars = getVariables({ type: 'script', script_id: getScriptId() }) as Record<string, unknown> | undefined;
     const url = typeof vars?.催眠APP前端URL === 'string' ? vars.催眠APP前端URL.trim() : '';
@@ -270,7 +294,6 @@ function getHypnosisAppFrontendUrl(): string {
 }
 
 $(() => {
-  const frontendUrl = getHypnosisAppFrontendUrl();
   const $container = createScriptIdDiv();
   $container.css({ position: 'fixed', bottom: '16px', right: '16px', zIndex: 99998, pointerEvents: 'none' });
   $container.find('*').css('pointerEvents', 'auto');
@@ -294,8 +317,12 @@ $(() => {
       '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
     )
     .on('click', () => {
+      const frontendUrl = getHypnosisAppFrontendUrl();
       if (!frontendUrl) {
-        toastr?.warning?.('未配置前端地址：请在脚本变量中设置 催眠APP前端URL，或确保脚本与前端同源部署');
+        const msg = '未配置前端地址：请在脚本变量中设置 催眠APP前端URL，或使用带前端URL的粘贴加载器';
+        console.warn('[催眠APP脚本]', msg);
+        if (typeof toastr !== 'undefined' && toastr.warning) toastr.warning(msg);
+        else if (typeof alert !== 'undefined') alert(msg);
         return;
       }
       const overlayId = `hypnosis_app_overlay_${getScriptId()}`;
