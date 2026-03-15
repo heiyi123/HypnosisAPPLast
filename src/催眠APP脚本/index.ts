@@ -218,55 +218,17 @@ function openFrontend() {
 
 $(() => {
   const btnHtml =
-    '<button type="button" title="打开催眠APP（可拖动图标到任意位置）" style="width:44px;height:44px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed 0%,#db2777 100%);color:#fff;cursor:grab;box-shadow:0 4px 14px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;padding:0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></button>';
-  const $btn = $(btnHtml);
+    '<button type="button" title="打开催眠APP" style="width:44px;height:44px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed 0%,#db2777 100%);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;padding:0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></button>';
+  const $btn = $(btnHtml).on('click', openFrontend);
 
-  const iconSize = 44;
-  const defaultLeft = Math.max(0, (typeof window !== 'undefined' ? window.innerWidth : 800) - 16 - iconSize);
-  const defaultTop = Math.max(0, (typeof window !== 'undefined' ? window.innerHeight : 600) - 100 - iconSize);
-
-  const $wrapper = createScriptIdDiv();
-  $wrapper.css({
-    position: 'fixed',
-    left: defaultLeft + 'px',
-    top: defaultTop + 'px',
-    width: iconSize + 'px',
-    height: iconSize + 'px',
-    zIndex: 99998,
-    cursor: 'grab',
-  });
-
-  let dragStart: { x: number; y: number; left: number; top: number } | null = null;
-  const move = (e: JQuery.MouseMoveEvent) => {
-    if (!dragStart) return;
-    const L = Math.max(0, dragStart.left + e.clientX - dragStart.x);
-    const T = Math.max(0, dragStart.top + e.clientY - dragStart.y);
-    $wrapper.css({ left: L + 'px', top: T + 'px' });
-  };
-  const up = (e: JQuery.MouseUpEvent) => {
-    if (!dragStart) return;
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    const moved = Math.abs(dx) + Math.abs(dy) < 5;
-    dragStart = null;
-    $(document).off('mousemove', move).off('mouseup', up);
-    $btn.css('cursor', 'grab');
-    if (moved) openFrontend();
-  };
-
-  // 直接在按钮上监听拖动，避免某些环境下 target.closest 失效导致无法拖动/点击
-  $btn.on('mousedown', (e: JQuery.MouseDownEvent) => {
-    e.preventDefault();
-    dragStart = {
-      x: e.clientX,
-      y: e.clientY,
-      left: parseFloat($wrapper.css('left')) || defaultLeft,
-      top: parseFloat($wrapper.css('top')) || defaultTop,
-    };
-    $(document).on('mousemove', move).on('mouseup', up);
-    $btn.css('cursor', 'grabbing');
-  });
-
-  $wrapper.append($btn);
-  $('body').append($wrapper);
+  const $sendBar = $('#send_but').parent();
+  if ($sendBar.length) {
+    $sendBar.prepend($btn);
+  } else {
+    const $container = createScriptIdDiv();
+    $container.css({ position: 'fixed', bottom: '16px', right: '16px', zIndex: 99998, pointerEvents: 'none' });
+    $container.find('*').css('pointerEvents', 'auto');
+    $container.append($btn);
+    $('body').append($container);
+  }
 });
