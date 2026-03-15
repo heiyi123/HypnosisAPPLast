@@ -37,63 +37,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
   });
 }
 
-/** 在 iframe 内也可能拿到父页的 API */
-function getCharacterNameFromAnyWindow(): string | null {
-  const wins = [globalThis, (globalThis as any).window, (globalThis as any).parent, (globalThis as any).top].filter(
-    Boolean,
-  ) as any[];
-  for (const w of wins) {
-    try {
-      if (typeof w?.getCurrentCharacterName === 'function') {
-        const name = w.getCurrentCharacterName();
-        if (typeof name === 'string' && name.trim()) return name.trim();
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return null;
-}
-
-/** 是否已打开角色卡（外挂模式：无角色卡时不加载变量，仅展示界面） */
-function useHasCharacter(): boolean | null {
-  const [hasCharacter, setHasCharacter] = useState<boolean | null>(null);
-  useEffect(() => {
-    const check = () => setHasCharacter(Boolean(getCharacterNameFromAnyWindow()));
-
-    check();
-
-    // 进入角色卡后可能只触发 CHARACTER_PAGE_LOADED，补上监听以便及时刷新
-    const g = globalThis as any;
-    const eventOn = g?.eventOn ?? g?.parent?.eventOn ?? g?.top?.eventOn;
-    const tavern_events = g?.tavern_events ?? g?.parent?.tavern_events ?? g?.top?.tavern_events;
-    const unsubs: (() => void)[] = [];
-    if (typeof eventOn === 'function' && tavern_events) {
-      if (tavern_events.CHAT_CHANGED) unsubs.push(eventOn(tavern_events.CHAT_CHANGED, check));
-      if (tavern_events.CHARACTER_PAGE_LOADED) unsubs.push(eventOn(tavern_events.CHARACTER_PAGE_LOADED, check));
-    }
-
-    // 前几秒轮询，避免「已打开角色卡但前端先打开」时漏检（iframe 刚加载时父页 API 可能尚未就绪）
-    const pollMs = 400;
-    const pollCount = 10;
-    let n = 0;
-    const pollTimer = window.setInterval(() => {
-      n += 1;
-      check();
-      if (n >= pollCount) window.clearInterval(pollTimer);
-    }, pollMs);
-
-    return () => {
-      window.clearInterval(pollTimer);
-      unsubs.forEach(off => off());
-    };
-  }, []);
-  return hasCharacter;
-}
-
 const App = () => {
-  const hasCharacter = useHasCharacter();
-
   // Global State
   const [currentApp, setCurrentApp] = useState<AppMode>(AppMode.HOME);
   const [userData, setUserData] = useState<UserResources | null>(null);
@@ -103,12 +47,7 @@ const App = () => {
   const [localNow, setLocalNow] = useState(() => new Date());
   const userRefreshInFlightRef = useRef(false);
 
-  // 无角色卡时使用占位数据，不请求变量；有角色卡时才加载
   useEffect(() => {
-    if (hasCharacter !== true) {
-      setUserData(FALLBACK_USER_DATA);
-      return;
-    }
     let stopped = false;
     let retryTimer: number | null = null;
     let attempt = 0;
@@ -136,7 +75,7 @@ const App = () => {
       stopped = true;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
-  }, [hasCharacter]);
+  }, []);
 
   useEffect(() => {
     if (currentApp !== AppMode.HOME) return;
@@ -156,9 +95,8 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (hasCharacter !== true) return;
     void refreshUnlocks();
-  }, [hasCharacter]);
+  }, []);
 
   const refreshUserData = async () => {
     if (userRefreshInFlightRef.current) return;
@@ -174,7 +112,7 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (hasCharacter !== true || currentApp !== AppMode.HOME) return;
+    if (currentApp !== AppMode.HOME) return;
 
     let stopped = false;
     let stops: Array<{ stop: () => void }> = [];
@@ -224,7 +162,7 @@ const App = () => {
       if (scheduled !== null) window.clearTimeout(scheduled);
       stops.forEach(s => s.stop());
     };
-  }, [hasCharacter, currentApp]);
+  }, [currentApp]);
 
   const updateUser = (data: UserResources) => {
     setUserData(data);
@@ -293,18 +231,9 @@ const App = () => {
     <div className="w-full flex items-center justify-center p-2">
       {/* Phone Bezel */}
       <div className="relative w-full max-w-[420px] aspect-9/19.5 bg-black rounded-[3rem] border-8 border-gray-800 overflow-hidden shadow-2xl ring-2 ring-black/20">
-        {/* 未选择角色时仅展示界面 */}
-        {hasCharacter !== true && (
-          <div className="absolute top-0 left-0 right-0 z-[100] px-3 py-2 bg-amber-900/90 text-amber-200 text-xs text-center border-b border-amber-700/50">
-            {hasCharacter === null ? '正在连接…' : '请先在当前对话中选择一名角色，即可正常使用'}
-          </div>
-        )}
-
         {/* Dynamic Notch/Status Bar Area - Only visible on Home */}
         {currentApp === AppMode.HOME && (
-          <div
-            className={`absolute w-full z-50 pointer-events-none ${hasCharacter !== true ? 'top-9' : 'top-0'}`}
-          >
+          <div className="absolute w-full top-0 z-50 pointer-events-none">
             <StatusBar timeText={systemTimeText} />
           </div>
         )}

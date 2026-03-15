@@ -94,10 +94,54 @@ function openFrontend() {
       boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
     });
 
+    const dragBar = targetDoc.createElement('div');
+    Object.assign(dragBar.style, {
+      height: '20px',
+      minHeight: '20px',
+      flexShrink: 0,
+      background: 'rgba(0,0,0,0.4)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      cursor: 'grab',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      userSelect: 'none',
+    });
+    const grip = targetDoc.createElement('div');
+    Object.assign(grip.style, {
+      width: '28px',
+      height: '4px',
+      borderRadius: '2px',
+      background: 'rgba(255,255,255,0.25)',
+    });
+    dragBar.appendChild(grip);
+
+    const closeBtn = targetDoc.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.title = '关闭';
+    Object.assign(closeBtn.style, {
+      position: 'absolute',
+      top: '4px',
+      right: '6px',
+      zIndex: 10,
+      width: '24px',
+      height: '24px',
+      borderRadius: '6px',
+      border: 'none',
+      background: 'rgba(255,255,255,0.1)',
+      color: 'rgba(255,255,255,0.8)',
+      cursor: 'pointer',
+      fontSize: '14px',
+      lineHeight: '1',
+    });
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', () => floatWrap.remove());
+
     const frameWrap = targetDoc.createElement('div');
     Object.assign(frameWrap.style, {
-      position: 'absolute',
-      inset: '0',
+      flex: '1',
+      minHeight: '0',
+      position: 'relative',
     });
 
     const iframe = targetDoc.createElement('iframe');
@@ -107,82 +151,37 @@ function openFrontend() {
       height: '100%',
       border: 'none',
       display: 'block',
+      position: 'absolute',
+      inset: '0',
       background: '#0f0f0f',
     });
     frameWrap.appendChild(iframe);
 
-    const overlay = targetDoc.createElement('div');
-    Object.assign(overlay.style, {
-      position: 'absolute',
-      inset: '0',
-      cursor: 'grab',
-      zIndex: 1,
+    Object.assign(floatWrap.style, {
+      display: 'flex',
+      flexDirection: 'column',
     });
-
-    const closeBtn = targetDoc.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.title = '关闭';
-    Object.assign(closeBtn.style, {
-      position: 'absolute',
-      top: '8px',
-      right: '8px',
-      zIndex: 2,
-      width: '32px',
-      height: '32px',
-      borderRadius: '8px',
-      border: 'none',
-      background: 'rgba(255,255,255,0.15)',
-      color: '#fff',
-      cursor: 'pointer',
-      fontSize: '18px',
-      lineHeight: '1',
-    });
-    closeBtn.textContent = '×';
-    closeBtn.addEventListener('click', () => floatWrap.remove());
-
+    floatWrap.appendChild(dragBar);
     floatWrap.appendChild(frameWrap);
-    floatWrap.appendChild(overlay);
     floatWrap.appendChild(closeBtn);
     targetDoc.body.appendChild(floatWrap);
 
     let dragStart: { x: number; y: number; left: number; top: number } | null = null;
-    let didDrag = false;
-
     const onMove = (e: MouseEvent) => {
       if (!dragStart) return;
-      const dx = e.clientX - dragStart.x;
-      const dy = e.clientY - dragStart.y;
-      if (Math.abs(dx) + Math.abs(dy) > 5) didDrag = true;
-      const L = Math.max(0, dragStart.left + dx);
-      const T = Math.max(0, dragStart.top + dy);
+      const L = Math.max(0, dragStart.left + e.clientX - dragStart.x);
+      const T = Math.max(0, dragStart.top + e.clientY - dragStart.y);
       floatWrap.style.left = L + 'px';
       floatWrap.style.top = T + 'px';
     };
-    const onUp = (e: MouseEvent) => {
-      if (!didDrag && dragStart && iframe.contentDocument) {
-        const rect = floatWrap.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const el = iframe.contentDocument.elementFromPoint(x, y);
-        if (el) {
-          el.dispatchEvent(
-            new MouseEvent('click', {
-              bubbles: true,
-              cancelable: true,
-              view: iframe.contentWindow ?? undefined,
-              clientX: x,
-              clientY: y,
-            }),
-          );
-        }
-      }
+    const onUp = () => {
       dragStart = null;
-      didDrag = false;
       targetDoc.removeEventListener('mousemove', onMove);
       targetDoc.removeEventListener('mouseup', onUp);
-      overlay.style.cursor = 'grab';
+      dragBar.style.cursor = 'grab';
     };
-    overlay.addEventListener('mousedown', (e: MouseEvent) => {
+    dragBar.addEventListener('mousedown', (e: MouseEvent) => {
+      if ((e.target as HTMLElement)?.closest?.('button')) return;
       e.preventDefault();
       dragStart = {
         x: e.clientX,
@@ -190,10 +189,9 @@ function openFrontend() {
         left: parseFloat(floatWrap.style.left) || initialLeft,
         top: parseFloat(floatWrap.style.top) || initialTop,
       };
-      didDrag = false;
       targetDoc.addEventListener('mousemove', onMove);
       targetDoc.addEventListener('mouseup', onUp);
-      overlay.style.cursor = 'grabbing';
+      dragBar.style.cursor = 'grabbing';
     });
 
     const baseUrl = frontendUrl.replace(/\/[^/]*$/, '/');
