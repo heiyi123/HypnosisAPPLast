@@ -37,27 +37,56 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
   });
 }
 
+/** 在 iframe 内也可能拿到父页的 API */
+function getCharacterNameFromAnyWindow(): string | null {
+  const wins = [globalThis, (globalThis as any).window, (globalThis as any).parent, (globalThis as any).top].filter(
+    Boolean,
+  ) as any[];
+  for (const w of wins) {
+    try {
+      if (typeof w?.getCurrentCharacterName === 'function') {
+        const name = w.getCurrentCharacterName();
+        if (typeof name === 'string' && name.trim()) return name.trim();
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
 /** 是否已打开角色卡（外挂模式：无角色卡时不加载变量，仅展示界面） */
 function useHasCharacter(): boolean | null {
   const [hasCharacter, setHasCharacter] = useState<boolean | null>(null);
   useEffect(() => {
-    const check = () => {
-      try {
-        const name =
-          typeof (globalThis as any).getCurrentCharacterName === 'function'
-            ? (globalThis as any).getCurrentCharacterName()
-            : null;
-        setHasCharacter(Boolean(typeof name === 'string' && name.trim()));
-      } catch {
-        setHasCharacter(false);
-      }
-    };
+    const check = () => setHasCharacter(Boolean(getCharacterNameFromAnyWindow()));
+
     check();
-    const { eventOn, tavern_events } = (globalThis as any) as { eventOn: (e: string, fn: () => void) => () => void; tavern_events: { CHAT_CHANGED: string } };
-    if (typeof eventOn === 'function' && tavern_events?.CHAT_CHANGED) {
-      const off = eventOn(tavern_events.CHAT_CHANGED, check);
-      return off;
+
+    // 进入角色卡后可能只触发 CHARACTER_PAGE_LOADED，补上监听以便及时刷新
+    const g = globalThis as any;
+    const eventOn = g?.eventOn ?? g?.parent?.eventOn ?? g?.top?.eventOn;
+    const tavern_events = g?.tavern_events ?? g?.parent?.tavern_events ?? g?.top?.tavern_events;
+    const unsubs: (() => void)[] = [];
+    if (typeof eventOn === 'function' && tavern_events) {
+      if (tavern_events.CHAT_CHANGED) unsubs.push(eventOn(tavern_events.CHAT_CHANGED, check));
+      if (tavern_events.CHARACTER_PAGE_LOADED) unsubs.push(eventOn(tavern_events.CHARACTER_PAGE_LOADED, check));
     }
+
+    // 前几秒轮询，避免「已打开角色卡但前端先打开」时漏检（iframe 刚加载时父页 API 可能尚未就绪）
+    const pollMs = 400;
+    const pollCount = 10;
+    let n = 0;
+    const pollTimer = window.setInterval(() => {
+      n += 1;
+      check();
+      if (n >= pollCount) window.clearInterval(pollTimer);
+    }, pollMs);
+
+    return () => {
+      window.clearInterval(pollTimer);
+      unsubs.forEach(off => off());
+    };
   }, []);
   return hasCharacter;
 }
@@ -264,10 +293,10 @@ const App = () => {
     <div className="w-full flex items-center justify-center p-2">
       {/* Phone Bezel */}
       <div className="relative w-full max-w-[420px] aspect-9/19.5 bg-black rounded-[3rem] border-8 border-gray-800 overflow-hidden shadow-2xl ring-2 ring-black/20">
-        {/* 未打开角色卡时仅展示界面，不加载变量 */}
+        {/* 未选择角色时仅展示界面 */}
         {hasCharacter !== true && (
           <div className="absolute top-0 left-0 right-0 z-[100] px-3 py-2 bg-amber-900/90 text-amber-200 text-xs text-center border-b border-amber-700/50">
-            {hasCharacter === null ? '检测中…' : '未打开角色卡，变量未加载；打开角色卡后即可正常使用'}
+            {hasCharacter === null ? '正在连接…' : '请先在当前对话中选择一名角色，即可正常使用'}
           </div>
         )}
 

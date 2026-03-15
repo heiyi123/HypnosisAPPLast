@@ -190,7 +190,7 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       if (!rolesData) {
         setRoles({});
         setSelectedRole(null);
-        setError('未连接到酒馆变量（MVU 未初始化或不在酒馆环境中）');
+        setError('暂时无法读取数据，请稍后再试');
         return;
       }
 
@@ -677,7 +677,7 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </HelpSection>
             <HelpSection title="堕落值">
               在催眠 APP 生效期间被进行的性爱与背德行为在「本轮 APP 操作」结束时结算，按本次行为整体增加 0～3 点。
-              长时间不使用 APP 时，堕落值会通过脚本每天自然降低 1 点（不低于 0），当堕落值达到 80 及以上时不再自然下降。
+              长时间不使用 APP 时，堕落值每天会自然降低 1 点（不低于 0），达到 80 及以上时不再自然下降。
             </HelpSection>
             <HelpSection title="主角可疑度">
               在社会看来主角有多可疑。肆无忌惮使用催眠 APP 会增加（例如被多人目击，或直接用催眠获取不当利益）。每天自然减少
@@ -693,6 +693,20 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         id: 'mc-points',
         title: '如何获取 MC 点数？',
         content: <div className="text-sm text-gray-600">通过完成成就、任务，或让角色高潮获得 PT。</div>,
+      },
+      {
+        id: 'character-registry',
+        title: '角色录入',
+        content: (
+          <div className="space-y-3 text-sm text-gray-600 leading-6">
+            <HelpSection title="作用">
+              添加新角色到 APP 中。输入姓名即可，之后该角色会出现在角色列表中，可对其使用催眠、身体检测等功能。
+            </HelpSection>
+            <HelpSection title="用法">
+              在「角色录入」页面填写角色姓名，点击确认录入。同一角色只需录入一次。
+            </HelpSection>
+          </div>
+        ),
       },
     ],
     [],

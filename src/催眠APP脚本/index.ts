@@ -55,6 +55,9 @@ function getHypnosisAppFrontendUrl(): string {
 
 const OVERLAY_ID = 'hypnosis_app_overlay';
 
+const PHONE_WIDTH = 420;
+const PHONE_HEIGHT = 700;
+
 function openFrontend() {
   try {
     const frontendUrl = getHypnosisAppFrontendUrl();
@@ -71,35 +74,51 @@ function openFrontend() {
       existing.remove();
       return;
     }
-    const overlay = targetDoc.createElement('div');
-    overlay.id = OVERLAY_ID;
-    Object.assign(overlay.style, {
+
+    const win = targetDoc.defaultView || window;
+    const initialLeft = Math.max(20, (win.innerWidth - PHONE_WIDTH) / 2);
+    const initialTop = Math.max(20, (win.innerHeight - PHONE_HEIGHT) / 2);
+
+    const floatWrap = targetDoc.createElement('div');
+    floatWrap.id = OVERLAY_ID;
+    Object.assign(floatWrap.style, {
       position: 'fixed',
-      inset: '0',
+      left: initialLeft + 'px',
+      top: initialTop + 'px',
+      width: PHONE_WIDTH + 'px',
+      height: PHONE_HEIGHT + 'px',
       zIndex: '99999',
-      background: 'rgba(0,0,0,0.6)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-      boxSizing: 'border-box',
-    });
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) overlay.remove();
-    });
-    const frameWrap = targetDoc.createElement('div');
-    Object.assign(frameWrap.style, {
-      width: '100%',
-      maxWidth: '420px',
-      height: '90%',
-      maxHeight: '800px',
       borderRadius: '16px',
       overflow: 'hidden',
       background: '#0f0f0f',
       boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-      position: 'relative',
     });
-    frameWrap.addEventListener('click', e => e.stopPropagation());
+
+    const frameWrap = targetDoc.createElement('div');
+    Object.assign(frameWrap.style, {
+      position: 'absolute',
+      inset: '0',
+    });
+
+    const iframe = targetDoc.createElement('iframe');
+    iframe.title = '催眠APP';
+    Object.assign(iframe.style, {
+      width: '100%',
+      height: '100%',
+      border: 'none',
+      display: 'block',
+      background: '#0f0f0f',
+    });
+    frameWrap.appendChild(iframe);
+
+    const overlay = targetDoc.createElement('div');
+    Object.assign(overlay.style, {
+      position: 'absolute',
+      inset: '0',
+      cursor: 'grab',
+      zIndex: 1,
+    });
+
     const closeBtn = targetDoc.createElement('button');
     closeBtn.type = 'button';
     closeBtn.title = '关闭';
@@ -107,7 +126,7 @@ function openFrontend() {
       position: 'absolute',
       top: '8px',
       right: '8px',
-      zIndex: '10',
+      zIndex: 2,
       width: '32px',
       height: '32px',
       borderRadius: '8px',
@@ -119,21 +138,63 @@ function openFrontend() {
       lineHeight: '1',
     });
     closeBtn.textContent = '×';
-    closeBtn.addEventListener('click', () => overlay.remove());
-    const iframe = targetDoc.createElement('iframe');
-    iframe.title = '催眠APP';
-    Object.assign(iframe.style, {
-      width: '100%',
-      height: '100%',
-      border: 'none',
-      display: 'block',
-      minHeight: '500px',
-      background: '#0f0f0f',
+    closeBtn.addEventListener('click', () => floatWrap.remove());
+
+    floatWrap.appendChild(frameWrap);
+    floatWrap.appendChild(overlay);
+    floatWrap.appendChild(closeBtn);
+    targetDoc.body.appendChild(floatWrap);
+
+    let dragStart: { x: number; y: number; left: number; top: number } | null = null;
+    let didDrag = false;
+
+    const onMove = (e: MouseEvent) => {
+      if (!dragStart) return;
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      if (Math.abs(dx) + Math.abs(dy) > 5) didDrag = true;
+      const L = Math.max(0, dragStart.left + dx);
+      const T = Math.max(0, dragStart.top + dy);
+      floatWrap.style.left = L + 'px';
+      floatWrap.style.top = T + 'px';
+    };
+    const onUp = (e: MouseEvent) => {
+      if (!didDrag && dragStart && iframe.contentDocument) {
+        const rect = floatWrap.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const el = iframe.contentDocument.elementFromPoint(x, y);
+        if (el) {
+          el.dispatchEvent(
+            new MouseEvent('click', {
+              bubbles: true,
+              cancelable: true,
+              view: iframe.contentWindow ?? undefined,
+              clientX: x,
+              clientY: y,
+            }),
+          );
+        }
+      }
+      dragStart = null;
+      didDrag = false;
+      targetDoc.removeEventListener('mousemove', onMove);
+      targetDoc.removeEventListener('mouseup', onUp);
+      overlay.style.cursor = 'grab';
+    };
+    overlay.addEventListener('mousedown', (e: MouseEvent) => {
+      e.preventDefault();
+      dragStart = {
+        x: e.clientX,
+        y: e.clientY,
+        left: parseFloat(floatWrap.style.left) || initialLeft,
+        top: parseFloat(floatWrap.style.top) || initialTop,
+      };
+      didDrag = false;
+      targetDoc.addEventListener('mousemove', onMove);
+      targetDoc.addEventListener('mouseup', onUp);
+      overlay.style.cursor = 'grabbing';
     });
-    frameWrap.appendChild(closeBtn);
-    frameWrap.appendChild(iframe);
-    overlay.appendChild(frameWrap);
-    targetDoc.body.appendChild(overlay);
 
     const baseUrl = frontendUrl.replace(/\/[^/]*$/, '/');
     fetch(frontendUrl)
@@ -157,17 +218,56 @@ function openFrontend() {
 
 $(() => {
   const btnHtml =
-    '<button type="button" title="打开催眠APP" style="width:44px;height:44px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed 0%,#db2777 100%);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;padding:0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></button>';
-  const $btn = $(btnHtml).on('click', openFrontend);
+    '<button type="button" title="打开催眠APP（可拖动图标到任意位置）" style="width:44px;height:44px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed 0%,#db2777 100%);color:#fff;cursor:grab;box-shadow:0 4px 14px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;padding:0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></button>';
+  const $btn = $(btnHtml);
 
-  const $sendBar = $('#send_but').parent();
-  if ($sendBar.length) {
-    $sendBar.prepend($btn);
-  } else {
-    const $container = createScriptIdDiv();
-    $container.css({ position: 'fixed', bottom: '16px', right: '16px', zIndex: 99998, pointerEvents: 'none' });
-    $container.find('*').css('pointerEvents', 'auto');
-    $container.append($btn);
-    $('body').append($container);
-  }
+  const iconSize = 44;
+  const defaultLeft = Math.max(0, (typeof window !== 'undefined' ? window.innerWidth : 800) - 16 - iconSize);
+  const defaultTop = Math.max(0, (typeof window !== 'undefined' ? window.innerHeight : 600) - 100 - iconSize);
+
+  const $wrapper = createScriptIdDiv();
+  $wrapper.css({
+    position: 'fixed',
+    left: defaultLeft + 'px',
+    top: defaultTop + 'px',
+    width: iconSize + 'px',
+    height: iconSize + 'px',
+    zIndex: 99998,
+    cursor: 'grab',
+  });
+
+  let dragStart: { x: number; y: number; left: number; top: number } | null = null;
+  const move = (e: JQuery.MouseMoveEvent) => {
+    if (!dragStart) return;
+    const L = Math.max(0, dragStart.left + e.clientX - dragStart.x);
+    const T = Math.max(0, dragStart.top + e.clientY - dragStart.y);
+    $wrapper.css({ left: L + 'px', top: T + 'px' });
+  };
+  const up = (e: JQuery.MouseUpEvent) => {
+    if (!dragStart) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    const moved = Math.abs(dx) + Math.abs(dy) < 5;
+    dragStart = null;
+    $(document).off('mousemove', move).off('mouseup', up);
+    $btn.css('cursor', 'grab');
+    if (moved) openFrontend();
+  };
+
+  $wrapper.on('mousedown', (e: JQuery.MouseDownEvent) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      e.preventDefault();
+      dragStart = {
+        x: e.clientX,
+        y: e.clientY,
+        left: parseFloat($wrapper.css('left')) || defaultLeft,
+        top: parseFloat($wrapper.css('top')) || defaultTop,
+      };
+      $(document).on('mousemove', move).on('mouseup', up);
+      $btn.css('cursor', 'grabbing');
+    }
+  });
+
+  $wrapper.append($btn);
+  $('body').append($wrapper);
 });

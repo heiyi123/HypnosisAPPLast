@@ -1245,7 +1245,7 @@ export const DataService = {
     if (store.quests?.[def.id] === 'CLAIMED') return { success: false, message: '该任务已完成并锁定' };
 
     const tasks = await MvuBridge.getTasks();
-    if (!tasks) return { success: false, message: 'MVU 未就绪，无法接取任务' };
+    if (!tasks) return { success: false, message: '暂时无法接取任务，请稍后再试' };
 
     const activeTaskNames = Object.entries(tasks).filter(
       ([, v]) => v && typeof v === 'object' && typeof (v as any).已完成 === 'boolean',
@@ -1257,12 +1257,12 @@ export const DataService = {
       await MvuBridge.setTask(def.name, { 完成条件: def.condition, 已完成: false });
       const after = await MvuBridge.getTasks();
       if (!after || !(def.name in after)) {
-        return { success: false, message: '接取失败：任务未写入 MVU（请确认 MVU schema 已包含“任务”）' };
+        return { success: false, message: '接取失败，请稍后再试' };
       }
       return { success: true };
     } catch (err) {
       console.warn('[HypnoOS] 接取任务写入失败', err);
-      return { success: false, message: '接取失败：写入 MVU 出错' };
+      return { success: false, message: '接取失败，请稍后再试' };
     }
   },
 
@@ -1275,18 +1275,18 @@ export const DataService = {
     if (store.quests?.[def.id] === 'CLAIMED') return { success: false, message: '该任务已完成并锁定' };
 
     const tasks = await MvuBridge.getTasks();
-    if (!tasks) return { success: false, message: 'MVU 未就绪，无法取消任务' };
+    if (!tasks) return { success: false, message: '暂时无法取消任务，请稍后再试' };
 
     if (!(def.name in (tasks as any))) return { success: false, message: '该任务未在进行中' };
 
     try {
       await MvuBridge.deleteTask(def.name);
       const after = await MvuBridge.getTasks();
-      if (after && def.name in after) return { success: false, message: '取消失败：任务未从 MVU 删除' };
+      if (after && def.name in after) return { success: false, message: '取消失败，请稍后再试' };
       return { success: true };
     } catch (err) {
       console.warn('[HypnoOS] 取消任务失败', err);
-      return { success: false, message: '取消失败：写入 MVU 出错' };
+      return { success: false, message: '取消失败，请稍后再试' };
     }
   },
 

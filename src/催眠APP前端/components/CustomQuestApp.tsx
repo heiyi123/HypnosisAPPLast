@@ -111,8 +111,7 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
               <div className="font-bold">说明</div>
               <p>
                 发布免费，完成奖励固定为 {CUSTOM_QUEST_REWARD_PT} PT。任务发布后会出现在「成就和任务」App
-                的任务列表中。你需要在剧情中实际完成该任务，并由 LLM 按世界书中的规则把对应任务的“已完成”设置为
-                true，才能在任务界面领取奖励 PT。
+                的任务列表中。在剧情中完成该任务后，即可在任务界面领取奖励 PT。
               </p>
             </div>
           </div>

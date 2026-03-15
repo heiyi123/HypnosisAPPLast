@@ -250,9 +250,7 @@ export const ShopApp: React.FC<ShopAppProps> = ({ userData, onUpdateUser, onBack
         })}
 
         <div className="mt-4 text-[11px] text-gray-400 leading-relaxed">
-          说明：商城中的商品为预设道具。购买后，会将对应物品名称写入
-          <span className="font-mono"> 系统/持有物品 </span>
-          中，同名物品会累加数量，方便在剧情与脚本中引用。
+          说明：商城中的商品为预设道具。购买后会自动加入你的持有物品，同名物品会累加数量，方便在剧情中使用。
         </div>
       </div>
 
