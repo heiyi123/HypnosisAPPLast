@@ -254,18 +254,17 @@ $(() => {
     if (moved) openFrontend();
   };
 
-  $wrapper.on('mousedown', (e: JQuery.MouseDownEvent) => {
-    if ((e.target as HTMLElement).closest('button')) {
-      e.preventDefault();
-      dragStart = {
-        x: e.clientX,
-        y: e.clientY,
-        left: parseFloat($wrapper.css('left')) || defaultLeft,
-        top: parseFloat($wrapper.css('top')) || defaultTop,
-      };
-      $(document).on('mousemove', move).on('mouseup', up);
-      $btn.css('cursor', 'grabbing');
-    }
+  // 直接在按钮上监听拖动，避免某些环境下 target.closest 失效导致无法拖动/点击
+  $btn.on('mousedown', (e: JQuery.MouseDownEvent) => {
+    e.preventDefault();
+    dragStart = {
+      x: e.clientX,
+      y: e.clientY,
+      left: parseFloat($wrapper.css('left')) || defaultLeft,
+      top: parseFloat($wrapper.css('top')) || defaultTop,
+    };
+    $(document).on('mousemove', move).on('mouseup', up);
+    $btn.css('cursor', 'grabbing');
   });
 
   $wrapper.append($btn);
