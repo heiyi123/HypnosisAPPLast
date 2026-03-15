@@ -1,5 +1,7 @@
 import { ArrowLeft, Clock } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { HypnosisTransitionView } from './HypnosisApp';
 import { buildNtrHypnosisSendMessage } from '../prompts/ntrHypnosisSend';
 import { DataService } from '../services/dataService';
 import { MvuBridge } from '../services/mvuBridge';
@@ -52,55 +54,12 @@ function clampInt(value: unknown, fallback: number, min: number, max: number) {
   return Math.max(min, Math.min(max, i));
 }
 
-function getFeatureCost(
-  feature: HypnosisFeature,
-  duration: number,
-): { energy: number; points: number } {
-  if (feature.id === 'vip1_stats') return { energy: 0, points: 0 };
-  const currency = feature.costCurrency ?? 'MC_ENERGY';
-  const persons = feature.userNumber ?? parseFirstNumber(feature.userNote) ?? 1;
-
-  let amount = 0;
-  switch (feature.id) {
-    case 'vip1_estrus': {
-      const heat = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 999);
-      amount = feature.costValue * heat;
-      break;
-    }
-    case 'vip1_memory_erase': {
-      const minutes = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 240);
-      amount = feature.costValue * minutes;
-      break;
-    }
-    case 'vip1_temp_sensitivity': {
-      const delta = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 100);
-      amount = 2 * delta;
-      break;
-    }
-    case 'vip2_pleasure': {
-      const intensity = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 999);
-      amount = feature.costValue * intensity * duration;
-      break;
-    }
-    case 'vip4_closed_space_common_sense': {
-      amount = feature.costValue * persons * duration;
-      break;
-    }
-    default: {
-      amount = feature.costType === 'ONE_TIME' ? feature.costValue : feature.costValue * duration;
-    }
-  }
-
-  if (currency === 'PT_POINTS') return { energy: 0, points: amount };
-  return { energy: amount, points: 0 };
-}
-
 function getFeatureNumericConfig(
   feature: HypnosisFeature,
 ): { label: string; unit: string; min: number; max: number; step?: number; hint?: string } | null {
   switch (feature.id) {
     case 'vip1_temp_sensitivity':
-      return { label: '敏感度增加', unit: '点', min: 1, max: 999, step: 1, hint: '每点2MC能量' };
+      return { label: '敏感度增加', unit: '点', min: 1, max: 999, step: 1 };
     case 'vip1_estrus':
       return { label: '发情增加', unit: '', min: 1, max: 999, step: 1 };
     case 'vip1_memory_erase':
@@ -117,8 +76,10 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
   const [duration, setDuration] = useState(10);
   const [durationInput, setDurationInput] = useState('10');
   const [globalNote, setGlobalNote] = useState('');
+  const [userDoingNote, setUserDoingNote] = useState('');
   const [performer, setPerformer] = useState('');
   const [sending, setSending] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     let stopped = false;
@@ -145,20 +106,6 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
     [features],
   );
 
-  const { totalEnergyCost, totalPointsCost } = useMemo(() => {
-    let energy = 0;
-    let points = 0;
-    for (const f of features) {
-      if (!f.isEnabled || f.id === 'vip1_stats') continue;
-      const cost = getFeatureCost(f, duration);
-      energy += cost.energy;
-      points += cost.points;
-    }
-    return { totalEnergyCost: energy, totalPointsCost: points };
-  }, [features, duration]);
-
-  const earnedPt = totalEnergyCost + totalPointsCost;
-
   const updateFeature = (id: string, patch: Partial<HypnosisFeature>) => {
     setFeatures(prev => prev.map(f => (f.id === id ? { ...f, ...patch } : f)));
   };
@@ -169,36 +116,20 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
     setFeatures(prev => prev.map(x => (x.id === id ? { ...x, isEnabled: !x.isEnabled } : x)));
   };
 
-  const formatFeatureCost = (feature: HypnosisFeature) => {
-    const currency = feature.costCurrency === 'PT_POINTS' ? 'PT' : 'MC';
-    if (feature.id === 'vip1_stats') return '';
-    if (feature.id === 'vip1_temp_sensitivity') return `每点敏感度: 2 ${currency}`;
-    if (feature.id === 'vip1_estrus') return `每点性欲: ${feature.costValue} ${currency}`;
-    if (feature.id === 'vip1_memory_erase') return `每分钟记忆: ${feature.costValue} ${currency}`;
-    if (feature.id === 'vip4_closed_space_common_sense') return `每人每分钟: ${feature.costValue} ${currency}`;
-    return feature.costType === 'ONE_TIME'
-      ? `一次性: ${feature.costValue} ${currency}`
-      : `每分钟: ${feature.costValue} ${currency}`;
-  };
+  const formatFeatureCost = (_feature: HypnosisFeature) => '';
 
   const handleGenerate = async () => {
     if (enabledForSend.length === 0) return;
+    setIsTransitioning(true);
     setSending(true);
     try {
-      await MvuBridge.appendThisTurnAppOperationLog(`NTR催眠事件（+${earnedPt} PT）`);
-      const newPt = userData.ptPoints + earnedPt;
-      try {
-        const persisted = await DataService.updateResources({ ptPoints: newPt });
-        onUpdateUser(persisted);
-      } catch (err) {
-        console.warn('[HypnoOS] NTR 获得 PT 持久化失败', err);
-        onUpdateUser({ ...userData, ptPoints: newPt });
-      }
+      await MvuBridge.appendThisTurnAppOperationLog('NTR催眠事件');
 
       const message = buildNtrHypnosisSendMessage({
         features: enabledForSend,
         durationMinutes: duration,
         globalNote,
+        userDoingNote: userDoingNote.trim(),
         performer: performer.trim(),
       });
 
@@ -208,9 +139,15 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
         await createChatMessages([{ role: 'user', message }], { refresh: 'affected' });
         await triggerSlash('/trigger');
       }
+
+      // 与催眠 APP 一致：播放约 3.2s 全屏动画后恢复
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setSending(false);
+      }, 3200);
     } catch (err) {
       console.warn('[HypnoOS] NTR催眠发送失败', err);
-    } finally {
+      setIsTransitioning(false);
       setSending(false);
     }
   };
@@ -258,13 +195,9 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
                     if (!cfg) return null;
                     const currentRaw = feature.userNumber;
                     const current = typeof currentRaw === 'number' && Number.isFinite(currentRaw) ? currentRaw : '';
-                    const cost = getFeatureCost(feature, duration);
-                    const currency = feature.costCurrency ?? 'MC_ENERGY';
-                    const computed = currency === 'PT_POINTS' ? cost.points : cost.energy;
-                    const currencyLabel = currency === 'PT_POINTS' ? 'PT' : 'MC';
                     return (
-                      <div className="mt-3 grid grid-cols-2 gap-2 items-end">
-                        <label className="col-span-1">
+                      <div className="mt-3">
+                        <label>
                           <div className="text-[10px] text-gray-400 mb-1">
                             {cfg.label}
                             {cfg.unit ? `（${cfg.unit}）` : ''}
@@ -290,12 +223,6 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
                             placeholder={`${cfg.min}-${cfg.max}`}
                           />
                         </label>
-                        <div className="col-span-1 text-right">
-                          <div className="text-[10px] text-gray-500">折算</div>
-                          <div className="text-xs font-bold text-amber-300 tabular-nums">
-                            {computed} {currencyLabel}
-                          </div>
-                        </div>
                       </div>
                     );
                   })()}
@@ -316,6 +243,12 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
     );
   };
 
+  if (isTransitioning) {
+    const target = typeof document !== 'undefined' ? document.body : null;
+    if (!target) return <HypnosisTransitionView />;
+    return createPortal(<HypnosisTransitionView />, target);
+  }
+
   return (
     <div className="h-full flex flex-col bg-[#0f0518] relative overflow-hidden font-sans">
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[40%] bg-amber-900/15 rounded-full blur-[80px] pointer-events-none" />
@@ -331,12 +264,8 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
         </button>
         <div className="flex flex-col items-center">
           <span className="text-pink-300 font-bold text-sm tracking-wider">NTR催眠</span>
-          <span className="text-[10px] text-gray-500">意外催眠事件 · 赚取 PT</span>
         </div>
-        <div className="flex flex-col items-end min-w-[52px]">
-          <span className="text-[10px] text-gray-500 uppercase">获得</span>
-          <span className="text-amber-300 font-bold tabular-nums">+{earnedPt} PT</span>
-        </div>
+        <div className="min-w-[44px]" />
       </div>
 
       {/* Content */}
@@ -366,6 +295,16 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
             className="w-full bg-black/40 border-b border-white/20 px-2 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50"
           />
         </div>
+        <div>
+          <label className="text-[10px] text-gray-500 block mb-1">主角这段时间在做的事（选填）</label>
+          <input
+            type="text"
+            placeholder="例如：在图书馆自习、在宿舍睡觉..."
+            value={userDoingNote}
+            onChange={e => setUserDoingNote(e.target.value)}
+            className="w-full bg-black/40 border border-white/20 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50"
+          />
+        </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center bg-gray-800 rounded-lg px-3 py-2 border border-white/5">
             <Clock size={16} className="text-amber-400 mr-2" />
@@ -393,9 +332,6 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
           >
             {sending ? '发送中…' : enabledForSend.length === 0 ? '请至少选择一项功能' : '生成事件'}
           </button>
-        </div>
-        <div className="text-[10px] text-gray-500 px-1">
-          赚取规则与催眠APP消耗一致：本事件等效消耗 {totalEnergyCost} MC + {totalPointsCost} PT → 获得 {earnedPt} PT
         </div>
       </div>
     </div>

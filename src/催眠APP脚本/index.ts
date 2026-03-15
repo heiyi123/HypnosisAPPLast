@@ -210,6 +210,8 @@ function openFrontend() {
         if (typeof s.eventOn === 'function') win.eventOn = s.eventOn;
         if (typeof s.tavern_events !== 'undefined') win.tavern_events = s.tavern_events;
         if (typeof s.waitGlobalInitialized === 'function') win.waitGlobalInitialized = s.waitGlobalInitialized;
+        if (typeof s.createChatMessages === 'function') win.createChatMessages = s.createChatMessages;
+        if (typeof s.triggerSlash === 'function') win.triggerSlash = s.triggerSlash;
         if (typeof (window as any).$ !== 'undefined') (win as any).$ = (window as any).$;
       } catch (err) {
         console.warn('[催眠APP脚本] 向前端注入 API 失败', err);

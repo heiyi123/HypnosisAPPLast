@@ -181,10 +181,7 @@ export const MvuBridge = {
       const { mvu, option } = data;
       let changed = false;
 
-      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统._MC能量`, user.mcEnergy)) changed = true;
-      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统._MC能量上限`, user.mcEnergyMax)) changed = true;
       if (await setIfChanged(mvu, `${MVU_PREFIX}.系统.当前PT点`, user.ptPoints)) changed = true;
-      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统._累计消耗PT点`, user.totalConsumedPt)) changed = true;
       if (await setIfChanged(mvu, `${MVU_PREFIX}.系统.主角可疑度`, user.suspicion)) changed = true;
 
       if (changed) {

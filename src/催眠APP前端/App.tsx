@@ -13,10 +13,7 @@ import { waitForMvuReady } from './services/mvuBridge';
 import { AppMode, UserResources } from './types';
 
 const FALLBACK_USER_DATA: UserResources = {
-  mcEnergy: 25,
-  mcEnergyMax: 25,
   ptPoints: 25,
-  totalConsumedPt: 0,
   suspicion: 0,
 };
 

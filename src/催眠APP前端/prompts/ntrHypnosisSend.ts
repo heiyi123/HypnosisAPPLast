@@ -16,11 +16,14 @@ export function buildNtrHypnosisSendMessage({
   features,
   durationMinutes,
   globalNote,
+  userDoingNote,
   performer,
 }: {
   features: HypnosisFeature[];
   durationMinutes: number;
   globalNote: string;
+  /** {{user}} 这段时间在做的事，供剧情参考 */
+  userDoingNote: string;
   /** 由谁来催眠；空则表示由系统生成符合场景的路人 */
   performer: string;
 }): string {
@@ -65,6 +68,10 @@ export function buildNtrHypnosisSendMessage({
   lines.push(`本次催眠的持续时间: ${durationMinutes}分钟`);
   lines.push('备注:');
   lines.push(indentLines(globalNote ?? '', 2));
+  if (normalizeText(userDoingNote)) {
+    lines.push('主角这段时间在做的事:');
+    lines.push(indentLines(userDoingNote, 2));
+  }
   lines.push('');
   lines.push('</意外催眠>');
   return lines.join('\n');

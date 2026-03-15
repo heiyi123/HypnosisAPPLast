@@ -12,12 +12,9 @@ export enum AppMode {
   SHOP = 'SHOP',
 }
 
-// User Resources Data Structure
+// User Resources Data Structure（仅 PT 解锁，无 MC 能量与累计消耗）
 export interface UserResources {
-  mcEnergy: number;
-  mcEnergyMax: number;
-  ptPoints: number; // PT 点数（与 MC 能量区分）
-  totalConsumedPt: number; // 累计消耗 PT，用于 VIP 进度
+  ptPoints: number;
   suspicion: number; // 0-100
 }
 
@@ -73,19 +70,19 @@ export interface SessionStartPayload {
   globalNote: string;
 }
 
-// VIP Tier Config
+// VIP Tier Config（subscriptionPricePt：支付该 PT 数即可解锁该档位）
 export interface VipTierConfig {
   tier: string;
-  unlockThreshold: number; // Total consumed PT required
+  subscriptionPricePt: number;
   label: string;
 }
 
 export const VIP_LEVELS: VipTierConfig[] = [
-  { tier: 'TRIAL', unlockThreshold: 0, label: '试用区' },
-  { tier: 'VIP1', unlockThreshold: 0, label: 'VIP 1 (基础)' },
-  { tier: 'VIP2', unlockThreshold: 100, label: 'VIP 2 (进阶)' },
-  { tier: 'VIP3', unlockThreshold: 250, label: 'VIP 3 (高阶)' },
-  { tier: 'VIP4', unlockThreshold: 500, label: 'VIP 4 (深度)' },
-  { tier: 'VIP5', unlockThreshold: 1000, label: 'VIP 5 (永久)' },
-  { tier: 'VIP6', unlockThreshold: 2500, label: 'VIP 6 (完全控制)' },
+  { tier: 'TRIAL', subscriptionPricePt: 0, label: '试用区' },
+  { tier: 'VIP1', subscriptionPricePt: 150, label: 'VIP 1 (基础)' },
+  { tier: 'VIP2', subscriptionPricePt: 300, label: 'VIP 2 (进阶)' },
+  { tier: 'VIP3', subscriptionPricePt: 500, label: 'VIP 3 (高阶)' },
+  { tier: 'VIP4', subscriptionPricePt: 1000, label: 'VIP 4 (深度)' },
+  { tier: 'VIP5', subscriptionPricePt: 2000, label: 'VIP 5 (永久)' },
+  { tier: 'VIP6', subscriptionPricePt: 2000, label: 'VIP 6 (完全控制)' },
 ];

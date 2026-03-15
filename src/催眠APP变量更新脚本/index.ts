@@ -1,4 +1,4 @@
-// 催眠APP 变量更新脚本：监听 MVU 变量更新，执行每日结算（能量恢复、警戒度/可疑度等）
+// 催眠APP 变量更新脚本：监听 MVU 变量更新，执行每日结算（警戒度/可疑度等）
 // 与「催眠APP脚本」分离：本脚本不提供打开前端的按钮，仅负责变量逻辑。
 /// <reference path="./shims.d.ts" />
 import _ from 'lodash';
@@ -14,8 +14,6 @@ const PATHS = {
   date: `${MVU_PREFIX}.系统.当前日期`,
   time: `${MVU_PREFIX}.系统.当前时间`,
   suspicion: `${MVU_PREFIX}.系统.主角可疑度`,
-  mcEnergy: [`${MVU_PREFIX}.系统._MC能量`, `${MVU_PREFIX}.系统.MC能量`],
-  mcEnergyMax: [`${MVU_PREFIX}.系统._MC能量上限`, `${MVU_PREFIX}.系统.MC能量上限`],
 } as const;
 
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
@@ -125,13 +123,6 @@ async function setIfChanged(
   return true;
 }
 
-function pickExistingPath(statData: Record<string, unknown>, paths: readonly string[]): string {
-  for (const p of paths) {
-    if (_.has(statData, p)) return p;
-  }
-  return paths[0];
-}
-
 function resolveDayDelta(
   beforeDate: unknown,
   afterDate: unknown,
@@ -190,24 +181,6 @@ async function applyDailySettlement(mvu: Mvu.MvuData, before: Mvu.MvuData): Prom
   if (dayDelta <= 0 && !isDateMissingUpdate) return false;
 
   let changed = false;
-
-  const energyPath = pickExistingPath(statAfter, PATHS.mcEnergy);
-  const energyMaxPath = pickExistingPath(statAfter, PATHS.mcEnergyMax);
-  const energy = toFiniteNumber(_.get(statAfter, energyPath), 0) ?? 0;
-  const energyMax = toFiniteNumber(_.get(statAfter, energyMaxPath), null);
-
-  if (energyMax !== null) {
-    const safeMax = Math.max(0, energyMax);
-    const regenPerDay = safeMax * 0.5;
-    const nextEnergy = clampNumber(energy + regenPerDay * dayDelta, 0, safeMax);
-    if (await setIfChanged(mvu, energyPath, nextEnergy)) changed = true;
-    for (const aliasPath of [...PATHS.mcEnergy, ...PATHS.mcEnergyMax]) {
-      if (!_.has(statAfter, aliasPath)) continue;
-      if (aliasPath === energyPath || aliasPath === energyMaxPath) continue;
-      const aliasValue = aliasPath.includes('能量上限') ? safeMax : nextEnergy;
-      if (await setIfChanged(mvu, aliasPath, aliasValue)) changed = true;
-    }
-  }
 
   const suspicion = toFiniteNumber(_.get(statAfter, PATHS.suspicion), null);
   const roles = _.get(statAfter, PATHS.roles);

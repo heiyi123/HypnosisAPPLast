@@ -23,18 +23,21 @@ function toFiniteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export function getSubscriptionUnlockThreshold(tier: SubscriptionTier): number {
+/** 解锁该档位所需 PT（支付即解锁，无累计要求） */
+export function getSubscriptionPricePt(tier: SubscriptionTier): number {
   const cfg = VIP_LEVELS.find(v => v.tier === tier);
-  return toFiniteNumber(cfg?.unlockThreshold) ?? 0;
+  return toFiniteNumber((cfg as { subscriptionPricePt?: number })?.subscriptionPricePt) ?? 0;
 }
+
+export const getSubscriptionUnlockThreshold = getSubscriptionPricePt;
 
 export function canSubscribeTier(ctx: {
   tier: SubscriptionTier;
   debugEnabled: boolean;
-  totalConsumedPt: number;
+  ptPoints: number;
 }): boolean {
   if (ctx.debugEnabled) return true;
-  return ctx.totalConsumedPt >= getSubscriptionUnlockThreshold(ctx.tier);
+  return ctx.ptPoints >= getSubscriptionPricePt(ctx.tier);
 }
 
 /** 购买制：只要存在已购买档位即视为有效，永久解锁。 */

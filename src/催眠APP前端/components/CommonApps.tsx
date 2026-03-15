@@ -652,13 +652,10 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     () => [
       {
         id: 'core-stats',
-        title: '核心数值说明（MC/警戒/服从/可疑）',
+        title: '核心数值说明（PT/警戒/服从/可疑）',
         content: (
           <div className="space-y-3">
-            <HelpSection title="MC 能量">
-              使用催眠 APP 会消耗能量，不同功能消耗不同。每天自然恢复至上限的 50%。
-            </HelpSection>
-            <HelpSection title="PT 点">用来解锁功能、提高 MC 能量上限、购买商城物品、订阅会员等。主要来源为完成任务。</HelpSection>
+            <HelpSection title="PT 点">用来解锁功能、订阅会员等。主要来源为完成任务。</HelpSection>
             <HelpSection title="警戒度">
               <div className="space-y-2">
                 <div>
@@ -684,15 +681,15 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               10 点。
             </HelpSection>
             <HelpSection title="PT 来源">
-              PT 点主要来自完成任务（成就与任务 App 中领取）；也可通过完成剧情中的高潮等获得。用于订阅、商城、购买能量等。
+              PT 点主要来自完成任务（成就与任务 App 中领取）。用于订阅、商城等。
             </HelpSection>
           </div>
         ),
       },
       {
-        id: 'mc-points',
-        title: '如何获取 MC 点数？',
-        content: <div className="text-sm text-gray-600">通过完成成就、任务，或让角色高潮获得 PT。</div>,
+        id: 'pt-points',
+        title: '如何获取 PT 点数？',
+        content: <div className="text-sm text-gray-600">通过完成成就、任务获得 PT。</div>,
       },
       {
         id: 'character-registry',

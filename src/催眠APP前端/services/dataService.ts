@@ -20,10 +20,7 @@ const CHAT_OPTION = { type: 'chat' } as const;
 const MVU_PREFIX = '催眠APP';
 
 const DEFAULT_USER_DATA: UserResources = {
-  mcEnergy: 25,
-  mcEnergyMax: 25,
   ptPoints: 25,
-  totalConsumedPt: 0,
   suspicion: 0,
 };
 
@@ -522,28 +519,10 @@ function toFiniteNumber(value: unknown): number | null {
 }
 
 function normalizeSystemAliases(systemRaw: Record<string, any>) {
-  const existingEnergy = toFiniteNumber(systemRaw._MC能量);
-  if (existingEnergy === null) {
-    const mcEnergy = toFiniteNumber(systemRaw.MC能量);
-    if (mcEnergy !== null) systemRaw._MC能量 = mcEnergy;
-  }
-
-  const existingEnergyMax = toFiniteNumber(systemRaw._MC能量上限);
-  if (existingEnergyMax === null) {
-    const mcEnergyMax = toFiniteNumber(systemRaw.MC能量上限);
-    if (mcEnergyMax !== null) systemRaw._MC能量上限 = mcEnergyMax;
-  }
-
-  // 迁移：旧变量名 当前MC点 / _累计消耗MC点 → 当前PT点 / _累计消耗PT点
   const existingPt = toFiniteNumber(systemRaw.当前PT点);
   if (existingPt === null) {
     const oldMc = toFiniteNumber(systemRaw.当前MC点);
     if (oldMc !== null) systemRaw.当前PT点 = oldMc;
-  }
-  const existingConsumedPt = toFiniteNumber(systemRaw._累计消耗PT点);
-  if (existingConsumedPt === null) {
-    const oldConsumed = toFiniteNumber(systemRaw._累计消耗MC点);
-    if (oldConsumed !== null) systemRaw._累计消耗PT点 = oldConsumed;
   }
   return systemRaw;
 }
@@ -629,10 +608,7 @@ async function getRolesAndSystemSnapshot(): Promise<{ system: Record<string, any
 }
 
 type SystemWithStore = {
-  _MC能量: number;
-  _MC能量上限: number;
   当前PT点: number;
-  _累计消耗PT点: number;
   主角可疑度: number;
   当前地点?: string;
   _hypnoos?: PersistedStore;
@@ -641,10 +617,7 @@ type SystemWithStore = {
 
 const SYSTEM_SCHEMA: z.ZodType<SystemWithStore> = z
   .object({
-    _MC能量: z.coerce.number().default(DEFAULT_USER_DATA.mcEnergy),
-    _MC能量上限: z.coerce.number().default(DEFAULT_USER_DATA.mcEnergyMax),
     当前PT点: z.coerce.number().default(DEFAULT_USER_DATA.ptPoints),
-    _累计消耗PT点: z.coerce.number().default(DEFAULT_USER_DATA.totalConsumedPt),
     主角可疑度: z.coerce.number().default(DEFAULT_USER_DATA.suspicion),
     当前地点: z.string().optional(),
     _hypnoos: STORE_SCHEMA.optional(),
@@ -654,10 +627,7 @@ const SYSTEM_SCHEMA: z.ZodType<SystemWithStore> = z
 
 function systemToUserResources(system: SystemWithStore): UserResources {
   return {
-    mcEnergy: Math.max(0, system._MC能量),
-    mcEnergyMax: Math.max(0, system._MC能量上限),
     ptPoints: Math.max(0, system.当前PT点),
-    totalConsumedPt: Math.max(0, system._累计消耗PT点),
     suspicion: Math.max(0, system.主角可疑度),
   };
 }
@@ -692,16 +662,16 @@ const STATIC_ACHIEVEMENTS: Array<Omit<Achievement, 'isClaimed'>> = [
   {
     id: 'ach_newbie',
     title: '初次接触',
-    description: '累计消耗超过 10 点 MC 能量。',
+    description: '持有 PT 达到 10。',
     rewardPtPoints: 5,
-    checkCondition: u => u.totalConsumedPt >= 10,
+    checkCondition: u => u.ptPoints >= 10,
   },
   {
     id: 'ach_vip2',
     title: '进阶会员',
-    description: '解锁 VIP 2 权限 (累计消耗 100 MC)。',
+    description: '持有 PT 达到 100。',
     rewardPtPoints: 20,
-    checkCondition: u => u.totalConsumedPt >= 100,
+    checkCondition: u => u.ptPoints >= 100,
   },
   {
     id: 'ach_rich',
@@ -740,22 +710,6 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
       description: `主角可疑度达到 ${t}%（${MVU_PREFIX}.系统.主角可疑度）`,
       rewardPtPoints: t,
       checkCondition: () => suspicion >= t,
-    });
-  }
-
-  const energyMax = toFiniteNumber(system?._MC能量上限) ?? 0;
-  const energyMaxThresholds: Array<[number, number]> = [
-    [100, 10],
-    [300, 30],
-    [1000, 50],
-  ];
-  for (const [t, reward] of energyMaxThresholds) {
-    achievements.push({
-      id: makeAchievementId('ach_energy_max', String(t)),
-      title: `MC能量上限达到 ${t}`,
-      description: `MC能量上限达到 ${t}（${MVU_PREFIX}.系统._MC能量上限）`,
-      rewardPtPoints: reward,
-      checkCondition: () => energyMax >= t,
     });
   }
 
@@ -884,8 +838,8 @@ export const DataService = {
 
   getSubscriptionUnlockThreshold: (tier: SubscriptionTier): number => getSubscriptionUnlockThreshold(tier),
 
-  canSubscribeTier: (tier: SubscriptionTier, ctx: { debugEnabled: boolean; totalConsumedPt: number }): boolean =>
-    canSubscribeTier({ tier, debugEnabled: ctx.debugEnabled, totalConsumedPt: ctx.totalConsumedPt }),
+  canSubscribeTier: (tier: SubscriptionTier, ctx: { debugEnabled: boolean; ptPoints: number }): boolean =>
+    canSubscribeTier({ tier, debugEnabled: ctx.debugEnabled, ptPoints: ctx.ptPoints }),
 
   isSubscriptionActive: (ctx: AccessContext): boolean => isSubscriptionActive(ctx),
 
@@ -920,10 +874,7 @@ export const DataService = {
     if (user) {
       updateVariablesWith(vars => {
         const { system, store } = normalizeChatVariables(vars);
-        system._MC能量 = user.mcEnergy;
-        system._MC能量上限 = user.mcEnergyMax;
         system.当前PT点 = user.ptPoints;
-        system._累计消耗PT点 = user.totalConsumedPt;
         system.主角可疑度 = user.suspicion;
         system._hypnoos = store;
         if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
@@ -1103,7 +1054,6 @@ export const DataService = {
     await updateStoreWith(store => ({ ...store, purchases: { ...store.purchases, [id]: true } }));
     const nextUser = await DataService.updateResources({
       ptPoints: user.ptPoints - price,
-      totalConsumedPt: user.totalConsumedPt + price,
     });
 
     return { ok: true, user: nextUser };
@@ -1122,18 +1072,12 @@ export const DataService = {
     const base = await DataService.getUserData();
     const draft: UserResources = { ...base, ...newData };
     const merged: UserResources = {
-      mcEnergy: Math.max(0, draft.mcEnergy),
-      mcEnergyMax: Math.max(0, draft.mcEnergyMax),
       ptPoints: Math.max(0, draft.ptPoints),
-      totalConsumedPt: Math.max(0, draft.totalConsumedPt),
       suspicion: Math.max(0, draft.suspicion),
     };
     updateVariablesWith(vars => {
       const { system, store } = normalizeChatVariables(vars);
-      system._MC能量 = merged.mcEnergy;
-      system._MC能量上限 = merged.mcEnergyMax;
       system.当前PT点 = merged.ptPoints;
-      system._累计消耗PT点 = merged.totalConsumedPt;
       system.主角可疑度 = merged.suspicion;
       system._hypnoos = store;
       if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};

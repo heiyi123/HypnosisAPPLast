@@ -1,12 +1,9 @@
 import {
-  AlertTriangle,
   ArrowLeft,
-  Battery,
   ChevronDown,
   ChevronUp,
   Clock,
   Lock,
-  ShoppingCart,
   StopCircle,
   Zap,
 } from 'lucide-react';
@@ -129,8 +126,8 @@ const VortexBackground = ({ speed = 'spin-slow' }: { speed?: string }) => {
   );
 };
 
-// --- Transition View (Initialization) ---
-const TransitionView = () => {
+// --- Transition View (Initialization) --- 供催眠 APP / NTR 催眠发送后全屏动画复用
+export const HypnosisTransitionView = () => {
   const [percent, setPercent] = useState(0);
   const [startAnim, setStartAnim] = useState(false);
 
@@ -327,7 +324,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   // State
   const [features, setFeatures] = useState<HypnosisFeature[]>([]);
   const [isExpanded, setIsExpanded] = useState(false); // Controls the "Command Center" (Stats + Store)
-  const [quickSupplyQtyInput, setQuickSupplyQtyInput] = useState('1');
   const containerRef = useRef<HTMLDivElement>(null);
   const commandCenterBaseRef = useRef<HTMLDivElement>(null);
   const footerControlsRef = useRef<HTMLDivElement>(null);
@@ -354,7 +350,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   const [sessionEndVirtualMinutes, setSessionEndVirtualMinutes] = useState<number | null>(null);
   const [sessionEndAtMs, setSessionEndAtMs] = useState<number | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showLowEnergyModal, setShowLowEnergyModal] = useState(false);
 
   // Load Features on Mount
   useEffect(() => {
@@ -533,46 +528,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     }
   };
 
-  const getFeatureCost = (feature: HypnosisFeature): { energy: number; points: number } => {
-    if (feature.id === 'vip1_stats') return { energy: 0, points: 0 };
-    const currency = feature.costCurrency ?? 'MC_ENERGY';
-    const persons = feature.userNumber ?? parseFirstNumber(feature.userNote) ?? 1;
-
-    let amount = 0;
-    switch (feature.id) {
-      case 'vip1_estrus': {
-        const heat = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 999);
-        amount = feature.costValue * heat;
-        break;
-      }
-      case 'vip1_memory_erase': {
-        const minutes = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 240);
-        amount = feature.costValue * minutes;
-        break;
-      }
-      case 'vip1_temp_sensitivity': {
-        const delta = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 100);
-        amount = 2 * delta;
-        break;
-      }
-      case 'vip2_pleasure': {
-        const intensity = clampInt(feature.userNumber ?? parseFirstNumber(feature.userNote), 1, 1, 999);
-        amount = feature.costValue * intensity * duration;
-        break;
-      }
-      case 'vip4_closed_space_common_sense': {
-        amount = feature.costValue * persons * duration;
-        break;
-      }
-      default: {
-        amount = feature.costType === 'ONE_TIME' ? feature.costValue : feature.costValue * duration;
-      }
-    }
-
-    if (currency === 'PT_POINTS') return { energy: 0, points: amount };
-    return { energy: amount, points: 0 };
-  };
-
   const accessContext = useMemo(
     () => ({ debugEnabled, subscription, nowVirtualMinutes }),
     [debugEnabled, nowVirtualMinutes, subscription],
@@ -596,26 +551,13 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     }
   }, [debugEnabled, features, nowVirtualMinutes, subscription, subscriptionActive]);
 
-  const { totalEnergyCost, totalPointsCost } = useMemo(() => {
-    let energy = 0;
-    let points = 0;
-    for (const feature of features) {
-      if (!feature.isEnabled) continue;
-      if (!canUseEnabledFeature(feature)) continue;
-      const cost = getFeatureCost(feature);
-      energy += cost.energy;
-      points += cost.points;
-    }
-    return { totalEnergyCost: energy, totalPointsCost: points };
-  }, [debugEnabled, duration, features, nowVirtualMinutes, subscription, subscriptionActive]);
-
   const hasSessionFeaturesEnabled = useMemo(
     () => features.some(f => f.isEnabled && f.id !== 'vip1_stats' && canUseEnabledFeature(f)),
     [debugEnabled, features, nowVirtualMinutes, subscription, subscriptionActive],
   );
 
   const canSubscribeTier = (tier: 'VIP1' | 'VIP2' | 'VIP3' | 'VIP4' | 'VIP5') =>
-    DataService.canSubscribeTier(tier, { debugEnabled, totalConsumedPt: userData.totalConsumedPt });
+    DataService.canSubscribeTier(tier, { debugEnabled, ptPoints: userData.ptPoints });
 
   const remainingSubscriptionText = useMemo(() => {
     if (debugEnabled) return 'DEBUG 已解锁';
@@ -623,8 +565,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     return `VIP${subscription.tier.slice(3)} 已永久解锁`;
   }, [debugEnabled, subscription]);
 
-  const missingEnergy = Math.max(0, totalEnergyCost - userData.mcEnergy);
-  const missingPoints = Math.max(0, totalPointsCost - userData.ptPoints);
 
   // --- Handlers ---
 
@@ -634,8 +574,9 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   };
 
   const subscribeTier = async (tier: 'VIP1' | 'VIP2' | 'VIP3' | 'VIP4' | 'VIP5') => {
+    const price = DataService.getSubscriptionUnlockThreshold(tier);
     if (!canSubscribeTier(tier)) {
-      window.alert(`未解锁：需要累计消耗 ${DataService.getSubscriptionUnlockThreshold(tier)} 点`);
+      window.alert(`PT 不足：需要 ${price} PT`);
       return;
     }
     const result = await DataService.subscribeOrRenew({ tier });
@@ -648,7 +589,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     setSubscription(result.subscription ?? null);
     setSubscriptionNotice('购买成功');
     setTimeout(() => setSubscriptionNotice(null), 2000);
-    const price = SUBSCRIPTION_PRICES[tier] ?? 0;
     void MvuBridge.appendThisTurnAppOperationLog(`购买 VIP${tier.slice(3)}（-${price} PT）`);
   };
 
@@ -669,13 +609,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   const enableDebugMode = async () => {
     await DataService.setDebugEnabled(true);
     setDebugEnabled(true);
-    onUpdateUser({
-      ...userData,
-      mcEnergy: 999999,
-      mcEnergyMax: 999999,
-      ptPoints: 999999,
-      totalConsumedPt: 999999,
-    });
+    onUpdateUser({ ...userData, ptPoints: 999999 });
   };
 
   const toggleFeature = (id: string) => {
@@ -742,12 +676,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   };
 
   const handleStart = async () => {
-    if (missingEnergy > 0 || missingPoints > 0) {
-      setShowLowEnergyModal(true);
-      return;
-    }
-
-    // Start Sequence
     setIsTransitioning(true);
 
     let endVirtualMinutes: number | null = null;
@@ -766,29 +694,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       .filter(f => f.isEnabled && f.id !== 'vip1_stats' && canUseEnabledFeature(f))
       .map(f => f);
 
-    // Deduct resources BEFORE sending message (the iframe may reload after chat update)
-    await MvuBridge.appendThisTurnAppOperationLog(
-      `启动催眠 ${duration}分钟（-${totalEnergyCost} MC${totalPointsCost > 0 ? `, -${totalPointsCost} PT` : ''}）`,
-    );
-    const newEnergy = Math.max(0, userData.mcEnergy - totalEnergyCost);
-    const newPoints = Math.max(0, userData.ptPoints - totalPointsCost);
-    const newTotalConsumed = userData.totalConsumedPt + totalEnergyCost + totalPointsCost;
-    try {
-      const persisted = await DataService.updateResources({
-        mcEnergy: newEnergy,
-        ptPoints: newPoints,
-        totalConsumedPt: newTotalConsumed,
-      });
-      onUpdateUser(persisted);
-    } catch (err) {
-      console.warn('[HypnoOS] 资源扣除持久化失败', err);
-      onUpdateUser({
-        ...userData,
-        mcEnergy: newEnergy,
-        ptPoints: newPoints,
-        totalConsumedPt: newTotalConsumed,
-      });
-    }
+    await MvuBridge.appendThisTurnAppOperationLog(`启动催眠 ${duration}分钟`);
 
     try {
       const message = buildHypnosisSendMessage({
@@ -841,102 +747,29 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     setGlobalNote('');
   };
 
-  const quickSupplyQty = useMemo(() => {
-    const parsed = Number.parseInt(quickSupplyQtyInput, 10);
-    if (!Number.isFinite(parsed) || parsed <= 0) return 1;
-    return Math.min(999, parsed);
-  }, [quickSupplyQtyInput]);
-
-  const purchaseEnergy = async (desiredAmount: number) => {
-    const unitPricePt = 1;
-    const amount = Math.floor(desiredAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
-
-    const missing = Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy));
-    const actualAmount = Math.min(missing, amount);
-    if (actualAmount <= 0) return;
-
-    const costPt = unitPricePt * actualAmount;
-    if (userData.ptPoints < costPt) return;
-
-    const nextPt = userData.ptPoints - costPt;
-    const nextEnergy = Math.min(userData.mcEnergyMax, userData.mcEnergy + actualAmount);
-    try {
-      const persisted = await DataService.updateResources({
-        ptPoints: nextPt,
-        mcEnergy: nextEnergy,
-      });
-      onUpdateUser(persisted);
-    } catch (err) {
-      console.warn('[HypnoOS] 购买能量持久化失败', err);
-      onUpdateUser({
-        ...userData,
-        ptPoints: nextPt,
-        mcEnergy: nextEnergy,
-      });
-    }
-    void MvuBridge.appendThisTurnAppOperationLog(`购买能量 +${actualAmount} MC（-${costPt} PT）`);
-  };
-
-  const purchaseMaxEnergy = async (desiredAmount: number) => {
-    const amount = Math.floor(desiredAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
-    if (userData.ptPoints < amount) return;
-
-    const nextPoints = userData.ptPoints - amount;
-    const nextEnergyMax = userData.mcEnergyMax + amount;
-    const nextTotalConsumed = userData.totalConsumedPt + amount;
-    try {
-      const persisted = await DataService.updateResources({
-        ptPoints: nextPoints,
-        mcEnergyMax: nextEnergyMax,
-        totalConsumedPt: nextTotalConsumed,
-      });
-      onUpdateUser(persisted);
-    } catch (err) {
-      console.warn('[HypnoOS] 提升能量上限持久化失败', err);
-      onUpdateUser({
-        ...userData,
-        ptPoints: nextPoints,
-        mcEnergyMax: nextEnergyMax,
-        totalConsumedPt: nextTotalConsumed,
-      });
-    }
-    void MvuBridge.appendThisTurnAppOperationLog(`提升能量上限 +${amount}（-${amount} PT）`);
-  };
-
-
   // --- Render Helpers ---
+
+  const tierOrder = (t: string) => subscriptionTiers.indexOf(t === 'VIP6' ? 'VIP5' : t);
 
   const renderTierSection = (tierConfig: (typeof VIP_LEVELS)[0]) => {
     const tierFeatures = features.filter(f => f.tier === tierConfig.tier);
     if (tierFeatures.length === 0) return null;
 
-    const isLocked = !debugEnabled && userData.totalConsumedPt < tierConfig.unlockThreshold;
-    const progressPercent =
-      tierConfig.unlockThreshold === 0
-        ? 100
-        : Math.min(100, (userData.totalConsumedPt / tierConfig.unlockThreshold) * 100);
+    const isLocked =
+      !debugEnabled &&
+      tierConfig.tier !== 'TRIAL' &&
+      (!subscription || tierOrder(subscription.tier) < tierOrder(tierConfig.tier));
+    const pricePt = 'subscriptionPricePt' in tierConfig ? tierConfig.subscriptionPricePt : 0;
 
-    const formatFeatureCost = (feature: HypnosisFeature) => {
-      const currency = feature.costCurrency === 'PT_POINTS' ? 'PT' : 'MC';
-      if (feature.id === 'vip1_stats') return '购买后自动解锁';
-      if (feature.id === 'vip1_temp_sensitivity') return `每点敏感度: 2 ${currency}`;
-      if (feature.id === 'vip1_estrus') return `每点性欲: ${feature.costValue} ${currency}`;
-      if (feature.id === 'vip1_memory_erase') return `每分钟记忆: ${feature.costValue} ${currency}`;
-      if (feature.id === 'vip4_closed_space_common_sense') return `每人每分钟: ${feature.costValue} ${currency}`;
-      return feature.costType === 'ONE_TIME'
-        ? `一次性: ${feature.costValue} ${currency}`
-        : `每分钟: ${feature.costValue} ${currency}`;
-    };
+    const formatFeatureCost = (_feature: HypnosisFeature) => '';
 
     return (
       <div key={tierConfig.tier} className="mb-6 relative">
         <div className="flex justify-between items-center mb-2 px-1">
           <h3 className="text-pink-300 font-bold text-sm tracking-wider uppercase">{tierConfig.label}</h3>
-          {isLocked && (
+          {isLocked && pricePt > 0 && (
             <span className="text-xs text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full">
-              需要消耗 {tierConfig.unlockThreshold} 点
+              支付 {pricePt} PT 解锁
             </span>
           )}
         </div>
@@ -946,15 +779,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
           <div className="absolute inset-0 z-10 bg-hypno-dark/60 backdrop-blur-sm rounded-xl border border-white/5 flex flex-col items-center justify-center text-center p-4">
             <Lock className="w-8 h-8 text-gray-400 mb-2" />
             <p className="text-sm text-gray-300 font-medium">区域未解锁</p>
-            <div className="w-full max-w-[150px] h-1.5 bg-gray-700 rounded-full mt-3 overflow-hidden">
-              <div
-                className="h-full bg-pink-500 transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {Math.floor(userData.totalConsumedPt)} / {tierConfig.unlockThreshold} 已消耗
-            </p>
+            <p className="text-xs text-gray-500 mt-1">支付 {pricePt} PT 可解锁该档位</p>
           </div>
         )}
 
@@ -1066,13 +891,9 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                       if (!cfg) return null;
                       const currentRaw = feature.userNumber;
                       const current = typeof currentRaw === 'number' && Number.isFinite(currentRaw) ? currentRaw : '';
-                      const cost = getFeatureCost(feature);
-                      const currency = feature.costCurrency ?? 'MC_ENERGY';
-                      const computed = currency === 'PT_POINTS' ? cost.points : cost.energy;
-                      const currencyLabel = currency === 'PT_POINTS' ? 'PT' : 'MC';
                       return (
-                        <div className="mt-3 grid grid-cols-2 gap-2 items-end">
-                          <label className="col-span-1">
+                        <div className="mt-3">
+                          <label>
                             <div className="text-[10px] text-gray-400 mb-1 flex items-center justify-between gap-2">
                               <span className="truncate">
                                 {cfg.label}
@@ -1102,12 +923,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                               placeholder={`${cfg.min}-${cfg.max}`}
                             />
                           </label>
-                          <div className="col-span-1 text-right">
-                            <div className="text-[10px] text-gray-500">自动计算费用</div>
-                            <div className="text-xs font-bold text-amber-300 tabular-nums">
-                              {computed} {currencyLabel}
-                            </div>
-                          </div>
                         </div>
                       );
                     })()}
@@ -1145,8 +960,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
   if (isTransitioning) {
     const target = typeof document !== 'undefined' ? document.body : null;
-    if (!target) return <TransitionView />;
-    return createPortal(<TransitionView />, target);
+    if (!target) return <HypnosisTransitionView />;
+    return createPortal(<HypnosisTransitionView />, target);
   }
 
   // --- Main Dashboard View ---
@@ -1181,20 +996,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
               <ArrowLeft size={22} />
             </button>
 
-            {/* Center: Energy Bar & Title */}
+            {/* Center: Title & 会员 */}
             <div className="flex-1 mx-4 flex flex-col justify-center">
-              <div className="flex justify-between items-end mb-1">
-                <span className="text-[10px] text-pink-300 font-bold tracking-widest uppercase">MC Energy</span>
-                <span className="text-[10px] text-gray-400">
-                  {Math.floor(userData.mcEnergy)} / {userData.mcEnergyMax}
-                </span>
-              </div>
-              <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${userData.mcEnergy < 20 ? 'bg-red-500' : 'bg-gradient-to-r from-purple-600 to-pink-500'}`}
-                  style={{ width: `${(userData.mcEnergy / userData.mcEnergyMax) * 100}%` }}
-                ></div>
-              </div>
               <div className="mt-1 flex items-center justify-between text-[9px] text-gray-500">
                 <span className="truncate">会员: {remainingSubscriptionText}</span>
               </div>
@@ -1226,82 +1029,13 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
           style={{ maxHeight: isExpanded ? `${commandCenterMaxHeightPx}px` : '0px' }}
         >
           <div className="px-4 pb-4 pt-2">
-            {/* Secondary Stats Grid */}
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="bg-black/30 rounded-lg p-2 text-center border border-white/5">
-                <div className="text-[10px] text-gray-400 mb-1">累计消耗</div>
-                <div className="text-sm font-semibold text-white">{Math.floor(userData.totalConsumedPt)}</div>
-              </div>
+            {/* Secondary Stats */}
+            <div className="grid grid-cols-1 gap-2 mb-4">
               <div className="bg-black/30 rounded-lg p-2 text-center border border-white/5">
                 <div className="text-[10px] text-gray-400 mb-1">可疑度</div>
                 <div className={`text-sm font-semibold ${userData.suspicion > 50 ? 'text-red-400' : 'text-green-400'}`}>
                   {userData.suspicion}%
                 </div>
-              </div>
-            </div>
-
-            {/* Quick Store Area */}
-            <div className="space-y-2">
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <div className="text-[10px] text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                  <ShoppingCart size={10} /> 快速补给
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">数量</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    step={1}
-                    value={quickSupplyQtyInput}
-                    onChange={e => setQuickSupplyQtyInput(e.target.value)}
-                    onBlur={() => setQuickSupplyQtyInput(String(quickSupplyQty))}
-                    aria-label="快速补给数量"
-                    className="w-16 bg-black/30 border border-white/10 rounded-md px-2 py-1 text-[10px] text-gray-200 focus:outline-none focus:border-pink-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                {/* Buy Energy */}
-                <button
-                  onClick={() => void purchaseEnergy(quickSupplyQty)}
-                  disabled={
-                    Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)) <= 0 ||
-                    userData.ptPoints <
-                    Math.min(Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)), quickSupplyQty) * 1
-                  }
-                  className="flex flex-col items-start bg-blue-900/20 border border-blue-500/20 hover:bg-blue-900/30 p-2 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="flex justify-between w-full mb-1">
-                    <Zap size={16} className="text-blue-400" />
-                    <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 rounded">
-                      {Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)) <= 0
-                        ? '已满'
-                        : `${Math.min(Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)), quickSupplyQty)} PT`}
-                    </span>
-                  </div>
-                  <div className="text-xs font-bold text-gray-200">
-                    {Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)) <= 0
-                      ? '能量已满'
-                      : `恢复 ${Math.min(Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)), quickSupplyQty)} 能量`}
-                  </div>
-                </button>
-
-                {/* Buy Max Energy */}
-                <button
-                  onClick={() => void purchaseMaxEnergy(quickSupplyQty)}
-                  disabled={userData.ptPoints < quickSupplyQty}
-                  className="flex flex-col items-start bg-purple-900/20 border border-purple-500/20 hover:bg-purple-900/30 p-2 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="flex justify-between w-full mb-1">
-                    <Battery size={16} className="text-purple-400" />
-                    <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 rounded">
-                      {quickSupplyQty} PT
-                    </span>
-                  </div>
-                  <div className="text-xs font-bold text-gray-200">上限 +{quickSupplyQty}</div>
-                </button>
               </div>
             </div>
 
@@ -1336,7 +1070,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                         <div className="text-xs font-bold text-gray-100">{tier}</div>
                         <div className="text-[10px] text-gray-400">
                           {lockedByUnlock
-                            ? `需累计消耗 ${DataService.getSubscriptionUnlockThreshold(tier)}`
+                            ? `需要 ${DataService.getSubscriptionUnlockThreshold(tier)} PT`
                             : isCurrent
                               ? '已永久解锁'
                               : `${price} PT 购买`}
@@ -1401,104 +1135,11 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                `}
           >
             <Zap size={18} fill="currentColor" />
-            {missingEnergy > 0 ? '能量不足' : missingPoints > 0 ? '点数不足' : '启动催眠'}
+            启动催眠
           </button>
         </div>
 
-        {/* Cost Summary */}
-        <div className="flex justify-between mt-2 px-1 text-[10px] text-gray-500">
-          <span>
-            预计消耗:{' '}
-            <span className={missingEnergy > 0 ? 'text-red-500 font-bold' : 'text-gray-300'}>{totalEnergyCost}</span> MC
-            {totalPointsCost > 0 && (
-              <>
-                {' '}
-                +{' '}
-                <span className={missingPoints > 0 ? 'text-red-500 font-bold' : 'text-gray-300'}>
-                  {totalPointsCost}
-                </span>{' '}
-                PT
-              </>
-            )}
-          </span>
-          <span>
-            当前可用: {Math.floor(userData.mcEnergy)} MC
-            {totalPointsCost > 0 ? `, ${userData.ptPoints} PT` : ''}
-          </span>
-        </div>
       </div>
-
-      {/* --- Low Energy Modal --- */}
-      {showLowEnergyModal && (
-        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
-          <div className="bg-gray-900 border border-red-500/30 w-full max-w-xs rounded-2xl p-6 shadow-[0_0_30px_rgba(239,68,68,0.2)] animate-slide-up">
-            <div className="flex flex-col items-center text-center">
-              <AlertTriangle size={48} className="text-red-500 mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">资源不足</h3>
-              <p className="text-sm text-gray-400 mb-6">
-                启动需要 <span className="text-white font-bold">{totalEnergyCost}</span> MC
-                {totalPointsCost > 0 ? ` + ${totalPointsCost} PT` : ''}，您当前缺少{' '}
-                {missingEnergy > 0 && (
-                  <>
-                    <span className="text-red-400 font-bold">{missingEnergy}</span> 能量
-                  </>
-                )}
-                {missingEnergy > 0 && missingPoints > 0 ? ' 与 ' : ''}
-                {missingPoints > 0 && (
-                  <>
-                    <span className="text-red-400 font-bold">{missingPoints}</span> 点数
-                  </>
-                )}
-                。
-              </p>
-
-              <div className="w-full space-y-2">
-                <button
-                  onClick={() =>
-                    void (async () => {
-                      const topUpCostPt = missingEnergy * 1 + missingPoints * 10;
-                      if (userData.ptPoints < topUpCostPt) return;
-
-                      const nextPt = userData.ptPoints - topUpCostPt + missingPoints;
-                      const nextEnergy = Math.min(userData.mcEnergyMax, userData.mcEnergy + missingEnergy);
-
-                      try {
-                        const persisted = await DataService.updateResources({
-                          ptPoints: nextPt,
-                          mcEnergy: nextEnergy,
-                        });
-                        onUpdateUser(persisted);
-                      } catch (err) {
-                        console.warn('[HypnoOS] 补齐资源持久化失败', err);
-                        onUpdateUser({
-                          ...userData,
-                          ptPoints: nextPt,
-                          mcEnergy: nextEnergy,
-                        });
-                      }
-
-                      void MvuBridge.appendThisTurnAppOperationLog(
-                        `补齐资源（-${topUpCostPt} PT, +${missingEnergy} MC, +${missingPoints} PT）`,
-                      );
-                      setShowLowEnergyModal(false);
-                    })()
-                  }
-                  disabled={userData.ptPoints < missingEnergy * 1 + missingPoints * 10}
-                  className="w-full py-3 bg-white text-black font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  花费 {missingEnergy * 1 + missingPoints * 10} PT 补齐
-                </button>
-                <button
-                  onClick={() => setShowLowEnergyModal(false)}
-                  className="w-full py-3 text-gray-400 text-sm hover:text-white"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
