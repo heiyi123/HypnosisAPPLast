@@ -103,7 +103,7 @@ export const CharacterRegistryApp: React.FC<CharacterRegistryAppProps> = ({ onBa
               depth: 0,
               order: 35,
             },
-            content: `${trimmedName}:\n  {{format_message_variable::stat_data.角色.${trimmedName}}}`,
+            content: `${trimmedName}:\n  {{format_message_variable::stat_data.催眠APP.角色.${trimmedName}}}`,
             probability: 100,
             recursion: { prevent_incoming: true, prevent_outgoing: true, delay_until: null },
             effect: { sticky: null, cooldown: null, delay: null },

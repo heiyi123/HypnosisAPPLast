@@ -10,16 +10,12 @@
   format: |-
     <update>
     <update_analysis>$(IN ENGLISH, no more than 80 words)
-    - ${calculate time passed: ...}
-    - ${decide whether dramatic updates are allowed as it's in a special case or the time passed is more than usual: YES/NO}
-    - ${analyze every 系统/ variable based on its corresponding `check`, according **only to current reply** instead of previous plots to get Delta, then calculate and `replace` 'value' = status_current_variable + Delta: ...}
-    - ${analyze 角色/角色名/警戒度 variable based on its corresponding `check`, according **only to current reply** instead of previous plots to get Delta, then calculate 'value' = status_current_variable + Delta: ...}
-    - ${analyze 角色/角色名/好感度 variable, requirements same as above: ...}
-    - ${analyze 角色/角色名/堕落值 variable, according to 堕落值 rules: only once at the end of current APP run with Delta in [0,3], low/short non-immoral uses usually 0, avoid farming by repeatedly toggling APP: ...}
-    - ${analyze 角色/角色名/性欲 variable, requirements same as above: ...}
-    - ${analyze 角色/角色名/快感值 variable, requirements same as above: ...}
+    - 所有变量路径均以 /催眠APP 为前缀（与主卡隔离）。analyze every 催眠APP/系统/ variable based on its corresponding `check`, according **only to current reply** instead of previous plots to get Delta, then calculate and `replace` 'value' = status_current_variable + Delta. JSON Patch path 示例: /催眠APP/系统/当前地点, /催眠APP/角色/角色名/警戒度 ...}
+    - ${analyze 催眠APP/角色/角色名/警戒度 variable based on its corresponding `check`, according **only to current reply** instead of previous plots to get Delta, then calculate 'value' = status_current_variable + Delta: ...}
+    - ${analyze 催眠APP/角色/角色名/性欲 variable, requirements same as above: ...}
+    - ${analyze 催眠APP/角色/角色名/快感值 variable, requirements same as above: ...}
     - ${decide whether character cum in current reply: YES/NO. If NO, skip, else analyze how to add Corresponding part's .XX高潮次数, replace Corresponding part's .XX敏感度.}
-    - ${analyze if 任务 completed: ...}
+    - ${analyze if 催眠APP/任务 completed: ...}
     </update_analysis>
     <json_patch>
     [

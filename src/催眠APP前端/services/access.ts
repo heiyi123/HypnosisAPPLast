@@ -4,10 +4,12 @@ import { VIP_LEVELS } from '../types';
 export const SUBSCRIPTION_TIERS = ['VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5'] as const;
 export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number];
 
+/** 购买制：仅记录已购买的档位，永久有效。 */
 export type SubscriptionState = {
   tier: SubscriptionTier;
-  endVirtualMinutes: number;
-  autoRenew: boolean;
+  /** 兼容旧类型；购买制下不用于判断是否有效 */
+  endVirtualMinutes?: number;
+  autoRenew?: boolean;
 };
 
 export type AccessContext = {
@@ -35,11 +37,10 @@ export function canSubscribeTier(ctx: {
   return ctx.totalConsumedPt >= getSubscriptionUnlockThreshold(ctx.tier);
 }
 
+/** 购买制：只要存在已购买档位即视为有效，永久解锁。 */
 export function isSubscriptionActive(ctx: AccessContext): boolean {
   if (ctx.debugEnabled) return true;
-  if (!ctx.subscription) return false;
-  if (ctx.nowVirtualMinutes === null) return false;
-  return ctx.subscription.endVirtualMinutes > ctx.nowVirtualMinutes;
+  return ctx.subscription != null && ctx.subscription.tier != null;
 }
 
 function featureRequiredSubscriptionTier(feature: HypnosisFeature): SubscriptionTier | null {

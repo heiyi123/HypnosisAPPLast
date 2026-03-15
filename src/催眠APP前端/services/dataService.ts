@@ -16,12 +16,14 @@ import { MvuBridge } from './mvuBridge';
 
 const CHAT_OPTION = { type: 'chat' } as const;
 
+/** 与主卡 MVU 隔离的命名空间前缀（外挂模式，不干扰其他 MVU 卡） */
+const MVU_PREFIX = '催眠APP';
+
 const DEFAULT_USER_DATA: UserResources = {
   mcEnergy: 25,
   mcEnergyMax: 25,
   ptPoints: 25,
   totalConsumedPt: 0,
-  money: 6000,
   suspicion: 0,
 };
 
@@ -443,10 +445,11 @@ type PersistedStore = {
   sessionEndVirtualMinutes?: number;
   sessionEndAtMs?: number;
   hasUsedHypnosis: boolean;
+  /** 购买制：已购买的会员档位，永久有效。兼容旧数据可能含 endVirtualMinutes/autoRenew。 */
   subscription?: {
     tier: 'VIP1' | 'VIP2' | 'VIP3' | 'VIP4' | 'VIP5';
-    endVirtualMinutes: number;
-    autoRenew: boolean;
+    endVirtualMinutes?: number;
+    autoRenew?: boolean;
   };
   features: Record<string, { isEnabled?: boolean; userNote?: string; userNumber?: number }>;
   purchases: Record<string, boolean>;
@@ -454,6 +457,8 @@ type PersistedStore = {
   quests: Record<string, QuestStatus>;
   customQuests?: QuestDefinition[];
   lastCustomQuestIndex?: number;
+  /** 催眠经历：每次催眠结束后追加一句简述，按时间顺序（旧在前）。 */
+  hypnosisExperiences?: string[];
 };
 
 const STORE_SCHEMA: z.ZodType<PersistedStore> = z
@@ -466,8 +471,8 @@ const STORE_SCHEMA: z.ZodType<PersistedStore> = z
     subscription: z
       .object({
         tier: z.enum(['VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5']),
-        endVirtualMinutes: z.coerce.number(),
-        autoRenew: z.coerce.boolean().default(false),
+        endVirtualMinutes: z.coerce.number().optional(),
+        autoRenew: z.coerce.boolean().optional(),
       })
       .optional(),
     features: z
@@ -496,6 +501,7 @@ const STORE_SCHEMA: z.ZodType<PersistedStore> = z
       )
       .default([]),
     lastCustomQuestIndex: z.coerce.number().default(0),
+    hypnosisExperiences: z.array(z.string()).default([]),
   })
   .default({
     version: 1,
@@ -507,6 +513,7 @@ const STORE_SCHEMA: z.ZodType<PersistedStore> = z
     quests: {},
     customQuests: [],
     lastCustomQuestIndex: 0,
+    hypnosisExperiences: [],
   });
 
 function toFiniteNumber(value: unknown): number | null {
@@ -557,15 +564,14 @@ function findQuestDefinitionById(id: string, store: PersistedStore): QuestDefini
   return customDef ?? null;
 }
 
+/** 会员购买价格（PT 点，一次性支付永久解锁）。为原周订阅 PT 的 5 倍。 */
 export const SUBSCRIPTION_PRICES: Record<SubscriptionTier, number> = {
-  VIP1: 3000,
-  VIP2: 6000,
-  VIP3: 10000,
-  VIP4: 20000,
-  VIP5: 40000,
+  VIP1: 150,
+  VIP2: 300,
+  VIP3: 500,
+  VIP4: 1000,
+  VIP5: 2000,
 };
-
-const SUBSCRIPTION_WEEK_MINUTES = 7 * 24 * 60;
 
 function parseVirtualMinutesFrom(dateText?: string, timeText?: string): number | null {
   if (!dateText || !timeText) return null;
@@ -618,7 +624,7 @@ async function getRolesAndSystemSnapshot(): Promise<{ system: Record<string, any
   const vars = getVariables(CHAT_OPTION);
   const normalized = normalizeChatVariables(vars);
   system ??= normalized.system as any;
-  roles ??= (vars as any)?.角色 ?? {};
+  roles ??= (vars as any)?.[MVU_PREFIX]?.角色 ?? {};
   return { system, roles };
 }
 
@@ -627,7 +633,6 @@ type SystemWithStore = {
   _MC能量上限: number;
   当前PT点: number;
   _累计消耗PT点: number;
-  持有零花钱: number;
   主角可疑度: number;
   当前地点?: string;
   _hypnoos?: PersistedStore;
@@ -640,7 +645,6 @@ const SYSTEM_SCHEMA: z.ZodType<SystemWithStore> = z
     _MC能量上限: z.coerce.number().default(DEFAULT_USER_DATA.mcEnergyMax),
     当前PT点: z.coerce.number().default(DEFAULT_USER_DATA.ptPoints),
     _累计消耗PT点: z.coerce.number().default(DEFAULT_USER_DATA.totalConsumedPt),
-    持有零花钱: z.coerce.number().default(DEFAULT_USER_DATA.money),
     主角可疑度: z.coerce.number().default(DEFAULT_USER_DATA.suspicion),
     当前地点: z.string().optional(),
     _hypnoos: STORE_SCHEMA.optional(),
@@ -654,16 +658,17 @@ function systemToUserResources(system: SystemWithStore): UserResources {
     mcEnergyMax: Math.max(0, system._MC能量上限),
     ptPoints: Math.max(0, system.当前PT点),
     totalConsumedPt: Math.max(0, system._累计消耗PT点),
-    money: Math.max(0, system.持有零花钱),
     suspicion: Math.max(0, system.主角可疑度),
   };
 }
 
 function normalizeChatVariables(variables: Record<string, any>) {
-  const systemRaw = normalizeSystemAliases(variables?.系统 ?? {});
+  const ns = variables?.[MVU_PREFIX] ?? {};
+  const systemRaw = normalizeSystemAliases(ns.系统 ?? {});
   const system = SYSTEM_SCHEMA.parse(systemRaw);
   system._hypnoos = STORE_SCHEMA.parse(system._hypnoos ?? {});
-  variables.系统 = system;
+  if (!variables[MVU_PREFIX]) variables[MVU_PREFIX] = {};
+  variables[MVU_PREFIX].系统 = system;
   return { variables, system, store: system._hypnoos };
 }
 
@@ -673,7 +678,8 @@ async function updateStoreWith(updater: (store: PersistedStore) => PersistedStor
     const { system, store } = normalizeChatVariables(vars);
     nextStore = STORE_SCHEMA.parse(updater(store));
     system._hypnoos = nextStore;
-    vars.系统 = system;
+    if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
+    vars[MVU_PREFIX].系统 = system;
     return vars;
   }, CHAT_OPTION);
 
@@ -699,10 +705,10 @@ const STATIC_ACHIEVEMENTS: Array<Omit<Achievement, 'isClaimed'>> = [
   },
   {
     id: 'ach_rich',
-    title: '资金充裕',
-    description: '持有金钱超过 50,000 円。',
+    title: '点数充裕',
+    description: '持有 PT 超过 500。',
     rewardPtPoints: 10,
-    checkCondition: u => u.money >= 50000,
+    checkCondition: u => u.ptPoints >= 500,
   },
   {
     id: 'ach_sus',
@@ -731,7 +737,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
     achievements.push({
       id: makeAchievementId('ach_suspicion', String(t)),
       title: `主角可疑度达到 ${t}`,
-      description: `主角可疑度达到 ${t}%（系统.主角可疑度）`,
+      description: `主角可疑度达到 ${t}%（${MVU_PREFIX}.系统.主角可疑度）`,
       rewardPtPoints: t,
       checkCondition: () => suspicion >= t,
     });
@@ -747,7 +753,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
     achievements.push({
       id: makeAchievementId('ach_energy_max', String(t)),
       title: `MC能量上限达到 ${t}`,
-      description: `MC能量上限达到 ${t}（系统._MC能量上限）`,
+      description: `MC能量上限达到 ${t}（${MVU_PREFIX}.系统._MC能量上限）`,
       rewardPtPoints: reward,
       checkCondition: () => energyMax >= t,
     });
@@ -769,14 +775,14 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
       achievements.push({
         id: makeAchievementId('ach_role_guard', roleName, String(t)),
         title: `${roleName} 警戒度达到 ${t}`,
-        description: `${roleName} 的警戒度达到 ${t}（角色.${roleName}.警戒度）`,
+        description: `${roleName} 的警戒度达到 ${t}（${MVU_PREFIX}.角色.${roleName}.警戒度）`,
         rewardPtPoints: t,
         checkCondition: () => guard >= t,
       });
       achievements.push({
         id: makeAchievementId('ach_role_obey', roleName, String(t)),
         title: `${roleName} 堕落值达到 ${t}`,
-        description: `${roleName} 的堕落值达到 ${t}（角色.${roleName}.堕落值）`,
+        description: `${roleName} 的堕落值达到 ${t}（${MVU_PREFIX}.角色.${roleName}.堕落值）`,
         rewardPtPoints: t,
         checkCondition: () => obey >= t,
       });
@@ -790,7 +796,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
         achievements.push({
           id: makeAchievementId('ach_sensitivity', roleName, key, String(t)),
           title: `${roleName}·${key} ≥ ${t}`,
-          description: `${roleName} 的 ${key} 达到 ${t}（角色.${roleName}.${key}）`,
+          description: `${roleName} 的 ${key} 达到 ${t}（${MVU_PREFIX}.角色.${roleName}.${key}）`,
           rewardPtPoints: 20,
           checkCondition: () => value >= t,
         });
@@ -805,7 +811,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
         achievements.push({
           id: makeAchievementId('ach_orgasm', roleName, key, String(t)),
           title: `${roleName}·${key} ≥ ${t}`,
-          description: `${roleName} 的 ${key} 达到 ${t}（角色.${roleName}.${key}）`,
+          description: `${roleName} 的 ${key} 达到 ${t}（${MVU_PREFIX}.角色.${roleName}.${key}）`,
           rewardPtPoints: 20,
           checkCondition: () => value >= t,
         });
@@ -834,26 +840,22 @@ const PERSISTENT_FEATURE_IDS = new Set<string>([]);
 
 const SUBSCRIPTION_TIER_TRIAL_LABEL = '试用期';
 
-function getSubscriptionTierLabel(
-  subscription: SubscriptionState | null,
-  nowVirtualMinutes: number | null,
-): string | null {
-  if (!subscription) return SUBSCRIPTION_TIER_TRIAL_LABEL;
-  if (nowVirtualMinutes === null) return null;
-  return subscription.endVirtualMinutes > nowVirtualMinutes ? subscription.tier : SUBSCRIPTION_TIER_TRIAL_LABEL;
+/** 购买制：有档位即返回该档位，否则试用期。 */
+function getSubscriptionTierLabel(subscription: SubscriptionState | null): string {
+  return subscription?.tier ?? SUBSCRIPTION_TIER_TRIAL_LABEL;
 }
 
-async function syncSubscriptionTierLabel(nowVirtualMinutes: number | null): Promise<void> {
+async function syncSubscriptionTierLabel(): Promise<void> {
   const { system, store } = normalizeChatVariables(getVariables(CHAT_OPTION));
   const subscription = (store.subscription as SubscriptionState | undefined) ?? null;
-  const desired = getSubscriptionTierLabel(subscription, nowVirtualMinutes);
-  if (desired === null) return;
+  const desired = getSubscriptionTierLabel(subscription);
   if (system._催眠APP订阅等级 === desired) return;
 
   updateVariablesWith(vars => {
     const { system: nextSystem } = normalizeChatVariables(vars);
     nextSystem._催眠APP订阅等级 = desired;
-    vars.系统 = nextSystem;
+    if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
+    vars[MVU_PREFIX].系统 = nextSystem;
     return vars;
   }, CHAT_OPTION);
 
@@ -922,10 +924,10 @@ export const DataService = {
         system._MC能量上限 = user.mcEnergyMax;
         system.当前PT点 = user.ptPoints;
         system._累计消耗PT点 = user.totalConsumedPt;
-        system.持有零花钱 = user.money;
         system.主角可疑度 = user.suspicion;
         system._hypnoos = store;
-        vars.系统 = system;
+        if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
+        vars[MVU_PREFIX].系统 = system;
         return vars;
       }, CHAT_OPTION);
     }
@@ -936,7 +938,7 @@ export const DataService = {
   getSystemClock: async (): Promise<{ dateText?: string; timeText?: string; virtualMinutes: number | null }> => {
     const maybeSync = async (clock: { virtualMinutes: number | null }) => {
       try {
-        await syncSubscriptionTierLabel(clock.virtualMinutes);
+        await syncSubscriptionTierLabel();
       } catch (err) {
         console.warn('[HypnoOS] 同步订阅等级变量失败', err);
       }
@@ -988,17 +990,32 @@ export const DataService = {
     await DataService.setSessionEnd({ endVirtualMinutes: null, endAtMs: null });
   },
 
-  getSubscription: async (): Promise<SubscriptionState | null> => {
+  /** 获取当前聊天的催眠经历列表（旧在前）。 */
+  getHypnosisExperiences: async (): Promise<string[]> => {
     const { store } = normalizeChatVariables(getVariables(CHAT_OPTION));
-    return (store.subscription as SubscriptionState | undefined) ?? null;
+    const list = store.hypnosisExperiences ?? [];
+    return Array.isArray(list) ? [...list] : [];
   },
 
-  setSubscriptionAutoRenew: async (autoRenew: boolean) => {
-    await updateStoreWith(store => ({
-      ...store,
-      subscription: store.subscription ? { ...store.subscription, autoRenew } : store.subscription,
-    }));
+  /** 催眠结束后追加一句简述到角色变量「催眠经历」。 */
+  appendHypnosisExperience: async (oneSentence: string) => {
+    const trimmed = String(oneSentence).trim();
+    if (!trimmed) return;
+    await updateStoreWith(store => {
+      const list = store.hypnosisExperiences ?? [];
+      return { ...store, hypnosisExperiences: [...list, trimmed] };
+    });
   },
+
+  getSubscription: async (): Promise<SubscriptionState | null> => {
+    const { store } = normalizeChatVariables(getVariables(CHAT_OPTION));
+    const sub = (store.subscription as SubscriptionState | undefined) ?? null;
+    if (!sub) return null;
+    return { tier: sub.tier, endVirtualMinutes: Number.MAX_SAFE_INTEGER, autoRenew: false };
+  },
+
+  /** 购买制下无自动续订，保留接口为空实现。 */
+  setSubscriptionAutoRenew: async (_autoRenew: boolean) => {},
 
   clearSubscription: async () => {
     await updateStoreWith(store => {
@@ -1010,50 +1027,32 @@ export const DataService = {
       const { system } = normalizeChatVariables(vars);
       if (system._催眠APP订阅等级 === SUBSCRIPTION_TIER_TRIAL_LABEL) return vars;
       system._催眠APP订阅等级 = SUBSCRIPTION_TIER_TRIAL_LABEL;
-      vars.系统 = system;
+      if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
+      vars[MVU_PREFIX].系统 = system;
       return vars;
     }, CHAT_OPTION);
     await MvuBridge.syncSubscriptionTier(SUBSCRIPTION_TIER_TRIAL_LABEL);
   },
 
-  subscribeOrRenew: async ({
-    tier,
-    nowVirtualMinutes,
-    extendFromExistingIfActive = true,
-  }: {
+  /** 购买制：一次性支付 PT 永久解锁该档位。 */
+  subscribeOrRenew: async (params: {
     tier: SubscriptionTier;
-    nowVirtualMinutes: number | null;
-    extendFromExistingIfActive?: boolean;
+    nowVirtualMinutes?: number | null;
   }): Promise<{ ok: boolean; message?: string; subscription?: SubscriptionState | null }> => {
-    if (nowVirtualMinutes === null) return { ok: false, message: '无法读取当前日期/时间，无法计算订阅到期时间' };
-
-    const price = SUBSCRIPTION_PRICES[tier];
+    const { tier } = params;
+    const pricePt = SUBSCRIPTION_PRICES[tier];
     const user = await DataService.getUserData();
-    if (user.money < price) return { ok: false, message: '零花钱不足' };
-
-    const storeBefore = await updateStoreWith(s => s);
-    const prev = storeBefore.subscription;
-    const prevActive = Boolean(prev) && prev!.endVirtualMinutes > nowVirtualMinutes;
-
-    const base =
-      extendFromExistingIfActive && prevActive
-        ? Math.max(nowVirtualMinutes, prev!.endVirtualMinutes)
-        : nowVirtualMinutes;
-
-    const nextSub: SubscriptionState = {
-      tier,
-      endVirtualMinutes: base + SUBSCRIPTION_WEEK_MINUTES,
-      autoRenew: prev?.autoRenew ?? false,
-    };
+    if (user.ptPoints < pricePt) return { ok: false, message: 'PT 点不足' };
 
     await DataService.updateResources({
-      money: user.money - price,
+      ptPoints: user.ptPoints - pricePt,
     });
+
+    const nextSub: SubscriptionState = { tier };
 
     const next = await updateStoreWith(store => ({
       ...store,
       subscription: nextSub,
-      // “角色状态可视化(vip1_stats)”购买/订阅成功一次后永久解锁，用于主屏幕显示“身体检测”APP。
       purchases: { ...store.purchases, vip1_stats: true },
     }));
 
@@ -1061,7 +1060,8 @@ export const DataService = {
       const { system } = normalizeChatVariables(vars);
       if (system._催眠APP订阅等级 === tier) return vars;
       system._催眠APP订阅等级 = tier;
-      vars.系统 = system;
+      if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
+      vars[MVU_PREFIX].系统 = system;
       return vars;
     }, CHAT_OPTION);
     await MvuBridge.syncSubscriptionTier(tier);
@@ -1069,22 +1069,9 @@ export const DataService = {
     return { ok: true, subscription: (next.subscription as SubscriptionState | undefined) ?? null };
   },
 
-  maybeAutoRenewSubscription: async (
-    nowVirtualMinutes: number | null,
-  ): Promise<{ renewed: boolean; message?: string }> => {
-    if (nowVirtualMinutes === null) return { renewed: false };
-    const { store } = normalizeChatVariables(getVariables(CHAT_OPTION));
-    const sub = store.subscription;
-    if (!sub || !sub.autoRenew) return { renewed: false };
-    if (sub.endVirtualMinutes > nowVirtualMinutes) return { renewed: false };
-
-    const result = await DataService.subscribeOrRenew({
-      tier: sub.tier,
-      nowVirtualMinutes,
-      extendFromExistingIfActive: false,
-    });
-    if (!result.ok) return { renewed: false, message: result.message };
-    return { renewed: true };
+  /** 购买制下不再自动续订，保留接口为空实现。 */
+  maybeAutoRenewSubscription: async (): Promise<{ renewed: boolean; message?: string }> => {
+    return { renewed: false };
   },
 
   getFeatures: async (): Promise<HypnosisFeature[]> => {
@@ -1139,7 +1126,6 @@ export const DataService = {
       mcEnergyMax: Math.max(0, draft.mcEnergyMax),
       ptPoints: Math.max(0, draft.ptPoints),
       totalConsumedPt: Math.max(0, draft.totalConsumedPt),
-      money: Math.max(0, draft.money),
       suspicion: Math.max(0, draft.suspicion),
     };
     updateVariablesWith(vars => {
@@ -1148,10 +1134,10 @@ export const DataService = {
       system._MC能量上限 = merged.mcEnergyMax;
       system.当前PT点 = merged.ptPoints;
       system._累计消耗PT点 = merged.totalConsumedPt;
-      system.持有零花钱 = merged.money;
       system.主角可疑度 = merged.suspicion;
       system._hypnoos = store;
-      vars.系统 = system;
+      if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
+      vars[MVU_PREFIX].系统 = system;
       return vars;
     }, CHAT_OPTION);
 
@@ -1326,24 +1312,12 @@ export const DataService = {
   createCustomQuest: async (input: {
     name: string;
     condition: string;
-    rewardPtPoints: number;
-  }): Promise<{ success: boolean; message?: string; newMoney?: number }> => {
+  }): Promise<{ success: boolean; message?: string }> => {
     const trimmedName = input.name.trim();
     const trimmedCondition = input.condition.trim();
-    const reward = Math.floor(input.rewardPtPoints);
+    const rewardPtPoints = 50;
     if (!trimmedName) return { success: false, message: '请填写任务名称' };
     if (!trimmedCondition) return { success: false, message: '请填写任务内容' };
-    if (!Number.isFinite(reward) || reward <= 0) return { success: false, message: '奖励 PT 必须为正整数' };
-    if (reward > 200) return { success: false, message: '单个任务奖励不能超过 200 PT' };
-
-    const user = await DataService.getUserData();
-    const cost = reward * 800;
-    if (user.money < cost) {
-      return { success: false, message: '金钱不足，无法发布该任务' };
-    }
-
-    const afterMoney = user.money - cost;
-    await DataService.updateResources({ money: afterMoney });
 
     let createdId = '';
     await updateStoreWith(store => {
@@ -1356,7 +1330,7 @@ export const DataService = {
         id,
         name: trimmedName,
         condition: trimmedCondition,
-        rewardPtPoints: reward,
+        rewardPtPoints,
       };
       return {
         ...store,
@@ -1366,13 +1340,11 @@ export const DataService = {
     });
 
     try {
-      await MvuBridge.appendThisTurnAppOperationLog?.(
-        `发布自定义任务「${trimmedName}」（奖励 ${reward} PT，-¥${(reward * 800).toLocaleString()}）`,
-      );
+      await MvuBridge.appendThisTurnAppOperationLog?.(`发布自定义任务「${trimmedName}」（奖励 ${rewardPtPoints} PT）`);
     } catch {
       // ignore
     }
 
-    return { success: true, newMoney: afterMoney };
+    return { success: true };
   },
 };

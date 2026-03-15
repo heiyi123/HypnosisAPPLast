@@ -2,9 +2,8 @@
 export enum AppMode {
   HOME = 'HOME',
   HYPNOSIS = 'HYPNOSIS',
+  NTR_HYPNOSIS = 'NTR_HYPNOSIS',
   BODY_STATS = 'BODY_STATS',
-  CALENDAR = 'CALENDAR',
-  MAP = 'MAP',
   HELP = 'HELP',
   ACHIEVEMENTS = 'ACHIEVEMENTS', // Replaces Ghost/WIP
   CHARACTER_REGISTRY = 'CHARACTER_REGISTRY',
@@ -19,7 +18,6 @@ export interface UserResources {
   mcEnergyMax: number;
   ptPoints: number; // PT 点数（与 MC 能量区分）
   totalConsumedPt: number; // 累计消耗 PT，用于 VIP 进度
-  money: number; // Yen
   suspicion: number; // 0-100
 }
 

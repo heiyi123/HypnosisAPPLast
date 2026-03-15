@@ -2,7 +2,10 @@ import _ from 'lodash';
 import type { UserResources } from '../types';
 
 const UPDATE_REASON = '催眠APP前端';
-const THIS_TURN_APP_OPERATION_LOG_PATH = '本轮APP操作';
+
+/** 与主卡 MVU 隔离的命名空间前缀（外挂模式） */
+const MVU_PREFIX = '催眠APP';
+const THIS_TURN_APP_OPERATION_LOG_PATH = `${MVU_PREFIX}.本轮APP操作`;
 const DEFAULT_APP_OPERATION_LOG_VALUE = '无';
 
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -126,20 +129,20 @@ export const MvuBridge = {
   getSystem: async (): Promise<Record<string, any> | null> => {
     const data = await getMvuData();
     if (!data) return null;
-    return (_.get(data.mvu, 'stat_data.系统') ?? null) as any;
+    return (_.get(data.mvu, `stat_data.${MVU_PREFIX}.系统`) ?? null) as any;
   },
 
   getRoles: async (): Promise<Record<string, any> | null> => {
     const data = await getMvuData();
     if (!data) return null;
-    const roles = _.get(data.mvu, 'stat_data.角色');
+    const roles = _.get(data.mvu, `stat_data.${MVU_PREFIX}.角色`);
     return _.isPlainObject(roles) ? (roles as any) : null;
   },
 
   getTasks: async (): Promise<Record<string, any> | null> => {
     const data = await getMvuData();
     if (!data) return null;
-    const tasks = _.get(data.mvu, 'stat_data.任务');
+    const tasks = _.get(data.mvu, `stat_data.${MVU_PREFIX}.任务`);
     return _.isPlainObject(tasks) ? (tasks as any) : null;
   },
 
@@ -149,7 +152,7 @@ export const MvuBridge = {
       if (!data) return false;
       const { mvu, option } = data;
 
-      const path = '系统.持有物品';
+      const path = `${MVU_PREFIX}.系统.持有物品`;
       const raw = _.get(mvu.stat_data, path);
       const current = _.isPlainObject(raw) ? (raw as Record<string, any>) : {};
 
@@ -178,12 +181,11 @@ export const MvuBridge = {
       const { mvu, option } = data;
       let changed = false;
 
-      if (await setIfChanged(mvu, '系统._MC能量', user.mcEnergy)) changed = true;
-      if (await setIfChanged(mvu, '系统._MC能量上限', user.mcEnergyMax)) changed = true;
-      if (await setIfChanged(mvu, '系统.当前PT点', user.ptPoints)) changed = true;
-      if (await setIfChanged(mvu, '系统._累计消耗PT点', user.totalConsumedPt)) changed = true;
-      if (await setIfChanged(mvu, '系统.持有零花钱', user.money)) changed = true;
-      if (await setIfChanged(mvu, '系统.主角可疑度', user.suspicion)) changed = true;
+      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统._MC能量`, user.mcEnergy)) changed = true;
+      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统._MC能量上限`, user.mcEnergyMax)) changed = true;
+      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统.当前PT点`, user.ptPoints)) changed = true;
+      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统._累计消耗PT点`, user.totalConsumedPt)) changed = true;
+      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统.主角可疑度`, user.suspicion)) changed = true;
 
       if (changed) {
         await Mvu.replaceMvuData(mvu, option);
@@ -196,7 +198,7 @@ export const MvuBridge = {
       const data = await getMvuData();
       if (!data) return false;
       const { mvu, option } = data;
-      const path = `任务.${taskName}`;
+      const path = `${MVU_PREFIX}.任务.${taskName}`;
       const prev = _.get(mvu.stat_data, path);
       if (_.isEqual(prev, payload)) return false;
       _.set(mvu.stat_data, path, payload);
@@ -211,7 +213,7 @@ export const MvuBridge = {
       if (!data) return false;
       const { mvu, option } = data;
 
-      const path = `任务.${taskName}`;
+      const path = `${MVU_PREFIX}.任务.${taskName}`;
       const prev = _.get(mvu.stat_data, path);
       if (typeof prev === 'undefined') return false;
 
@@ -227,7 +229,7 @@ export const MvuBridge = {
       if (!data) return;
 
       const { mvu, option } = data;
-      const changed = await setIfChanged(mvu, '系统._hypnoos', store);
+      const changed = await setIfChanged(mvu, `${MVU_PREFIX}.系统._hypnoos`, store);
       if (changed) {
         await Mvu.replaceMvuData(mvu, option);
       }
@@ -241,7 +243,7 @@ export const MvuBridge = {
       if (!data) return;
 
       const { mvu, option } = data;
-      const changed = await setIfChanged(mvu, '系统._催眠APP订阅等级', tierLabel);
+      const changed = await setIfChanged(mvu, `${MVU_PREFIX}.系统._催眠APP订阅等级`, tierLabel);
       if (changed) {
         await Mvu.replaceMvuData(mvu, option);
       }
@@ -297,11 +299,11 @@ export const MvuBridge = {
       const data = await getMvuData();
       if (!data) return false;
       const { mvu, option } = data;
-      const roles = (_.get(mvu.stat_data, '角色') as Record<string, any>) ?? {};
+      const roles = (_.get(mvu.stat_data, `${MVU_PREFIX}.角色`) as Record<string, any>) ?? {};
       if (Object.prototype.hasOwnProperty.call(roles, roleName)) {
         return false;
       }
-      _.set(mvu.stat_data, `角色.${roleName}`, initialData);
+      _.set(mvu.stat_data, `${MVU_PREFIX}.角色.${roleName}`, initialData);
       await Mvu.replaceMvuData(mvu, option);
       return true;
     });

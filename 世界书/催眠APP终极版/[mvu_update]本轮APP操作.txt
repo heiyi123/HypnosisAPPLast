@@ -1,6 +1,6 @@
 <APP操作log>
 {{user}}刚才对APP的操作为:
-{{format_message_variable::stat_data.本轮APP操作}}
+{{format_message_variable::stat_data.催眠APP.本轮APP操作}}
 
 如果为`无`或者空, 则代表{{user}}没有操作APP, 严禁进行相关描写
 </APP操作log>

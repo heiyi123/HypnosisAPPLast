@@ -1,11 +1,12 @@
-import { Activity, AlertTriangle, Calendar, Globe, HelpCircle, Map, ShoppingBag, Trophy, UserPlus2 } from 'lucide-react';
+import { Activity, AlertTriangle, Globe, HelpCircle, ShoppingBag, Trophy, UserPlus2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AchievementApp } from './components/AchievementApp';
 import { CharacterRegistryApp } from './components/CharacterRegistryApp';
-import { BodyStatsApp, CalendarApp, CampusMapApp, HelpApp, WipApp } from './components/CommonApps';
+import { BodyStatsApp, HelpApp, WipApp } from './components/CommonApps';
 import { CustomQuestApp } from './components/CustomQuestApp';
 import { ShopApp } from './components/ShopApp';
 import { HypnoLogoSVG, HypnosisApp } from './components/HypnosisApp';
+import { BullHeadLogoSVG, NtrHypnosisApp } from './components/NtrHypnosisApp';
 import { StatusBar } from './components/OS/StatusBar';
 import { DataService } from './services/dataService';
 import { waitForMvuReady } from './services/mvuBridge';
@@ -16,7 +17,6 @@ const FALLBACK_USER_DATA: UserResources = {
   mcEnergyMax: 25,
   ptPoints: 25,
   totalConsumedPt: 0,
-  money: 6000,
   suspicion: 0,
 };
 
@@ -37,7 +37,34 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
   });
 }
 
+/** 是否已打开角色卡（外挂模式：无角色卡时不加载变量，仅展示界面） */
+function useHasCharacter(): boolean | null {
+  const [hasCharacter, setHasCharacter] = useState<boolean | null>(null);
+  useEffect(() => {
+    const check = () => {
+      try {
+        const name =
+          typeof (globalThis as any).getCurrentCharacterName === 'function'
+            ? (globalThis as any).getCurrentCharacterName()
+            : null;
+        setHasCharacter(Boolean(typeof name === 'string' && name.trim()));
+      } catch {
+        setHasCharacter(false);
+      }
+    };
+    check();
+    const { eventOn, tavern_events } = (globalThis as any) as { eventOn: (e: string, fn: () => void) => () => void; tavern_events: { CHAT_CHANGED: string } };
+    if (typeof eventOn === 'function' && tavern_events?.CHAT_CHANGED) {
+      const off = eventOn(tavern_events.CHAT_CHANGED, check);
+      return off;
+    }
+  }, []);
+  return hasCharacter;
+}
+
 const App = () => {
+  const hasCharacter = useHasCharacter();
+
   // Global State
   const [currentApp, setCurrentApp] = useState<AppMode>(AppMode.HOME);
   const [userData, setUserData] = useState<UserResources | null>(null);
@@ -47,8 +74,12 @@ const App = () => {
   const [localNow, setLocalNow] = useState(() => new Date());
   const userRefreshInFlightRef = useRef(false);
 
-  // Initialize Data
+  // 无角色卡时使用占位数据，不请求变量；有角色卡时才加载
   useEffect(() => {
+    if (hasCharacter !== true) {
+      setUserData(FALLBACK_USER_DATA);
+      return;
+    }
     let stopped = false;
     let retryTimer: number | null = null;
     let attempt = 0;
@@ -76,7 +107,7 @@ const App = () => {
       stopped = true;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
-  }, []);
+  }, [hasCharacter]);
 
   useEffect(() => {
     if (currentApp !== AppMode.HOME) return;
@@ -96,8 +127,9 @@ const App = () => {
   };
 
   useEffect(() => {
+    if (hasCharacter !== true) return;
     void refreshUnlocks();
-  }, []);
+  }, [hasCharacter]);
 
   const refreshUserData = async () => {
     if (userRefreshInFlightRef.current) return;
@@ -113,7 +145,7 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (currentApp !== AppMode.HOME) return;
+    if (hasCharacter !== true || currentApp !== AppMode.HOME) return;
 
     let stopped = false;
     let stops: Array<{ stop: () => void }> = [];
@@ -163,7 +195,7 @@ const App = () => {
       if (scheduled !== null) window.clearTimeout(scheduled);
       stops.forEach(s => s.stop());
     };
-  }, [currentApp]);
+  }, [hasCharacter, currentApp]);
 
   const updateUser = (data: UserResources) => {
     setUserData(data);
@@ -178,6 +210,14 @@ const App = () => {
     switch (currentApp) {
       case AppMode.HYPNOSIS:
         return <HypnosisApp userData={userData} onUpdateUser={updateUser} onExit={() => setCurrentApp(AppMode.HOME)} />;
+      case AppMode.NTR_HYPNOSIS:
+        return (
+          <NtrHypnosisApp
+            userData={userData}
+            onUpdateUser={updateUser}
+            onExit={() => setCurrentApp(AppMode.HOME)}
+          />
+        );
       case AppMode.BODY_STATS:
         if (!bodyStatsUnlocked)
           return (
@@ -190,10 +230,6 @@ const App = () => {
             />
           );
         return <BodyStatsApp onBack={() => setCurrentApp(AppMode.HOME)} />;
-      case AppMode.CALENDAR:
-        return <CalendarApp onBack={() => setCurrentApp(AppMode.HOME)} />;
-      case AppMode.MAP:
-        return <CampusMapApp onBack={() => setCurrentApp(AppMode.HOME)} />;
       case AppMode.HELP:
         return <HelpApp onBack={() => setCurrentApp(AppMode.HOME)} />;
       case AppMode.ACHIEVEMENTS: // New Route
@@ -228,9 +264,18 @@ const App = () => {
     <div className="w-full flex items-center justify-center p-2">
       {/* Phone Bezel */}
       <div className="relative w-full max-w-[420px] aspect-9/19.5 bg-black rounded-[3rem] border-8 border-gray-800 overflow-hidden shadow-2xl ring-2 ring-black/20">
+        {/* 未打开角色卡时仅展示界面，不加载变量 */}
+        {hasCharacter !== true && (
+          <div className="absolute top-0 left-0 right-0 z-[100] px-3 py-2 bg-amber-900/90 text-amber-200 text-xs text-center border-b border-amber-700/50">
+            {hasCharacter === null ? '检测中…' : '未打开角色卡，变量未加载；打开角色卡后即可正常使用'}
+          </div>
+        )}
+
         {/* Dynamic Notch/Status Bar Area - Only visible on Home */}
         {currentApp === AppMode.HOME && (
-          <div className="absolute top-0 w-full z-50 pointer-events-none">
+          <div
+            className={`absolute w-full z-50 pointer-events-none ${hasCharacter !== true ? 'top-9' : 'top-0'}`}
+          >
             <StatusBar timeText={systemTimeText} />
           </div>
         )}
@@ -320,19 +365,11 @@ const HomeScreen = ({
       disabled: false,
     },
     {
-      id: 'calendar',
-      name: '日历',
-      icon: Calendar,
-      color: 'bg-white text-black',
-      mode: AppMode.CALENDAR,
-      disabled: false,
-    },
-    {
-      id: 'map',
-      name: '校园地图',
-      icon: Map,
-      color: 'bg-emerald-600',
-      mode: AppMode.MAP,
+      id: 'ntr-hypno',
+      name: 'NTR催眠',
+      icon: BullHeadLogoSVG,
+      color: 'bg-gradient-to-br from-amber-700 to-orange-800',
+      mode: AppMode.NTR_HYPNOSIS,
       disabled: false,
     },
     { id: 'help', name: '帮助', icon: HelpCircle, color: 'bg-gray-500', mode: AppMode.HELP, disabled: false },
@@ -424,7 +461,7 @@ const HomeScreen = ({
               relative
             `}
             >
-              <app.icon size={28} className={app.id === 'calendar' ? 'text-black' : 'text-white'} />
+              <app.icon size={28} className="text-white" />
               {app.disabled && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-2xl">
                   <span className="text-[8px] font-bold text-white bg-red-600 px-1 rounded">WIP</span>

@@ -6,7 +6,6 @@ import {
   ChevronUp,
   Clock,
   Lock,
-  RefreshCcw,
   ShoppingCart,
   StopCircle,
   Zap,
@@ -471,25 +470,9 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
         if (stopped) return;
         setNowVirtualMinutes(clock.virtualMinutes);
 
-        const auto = await DataService.maybeAutoRenewSubscription(clock.virtualMinutes);
-        if (stopped) return;
-        if (auto.renewed) {
-          const refreshed = await DataService.getUserData();
-          if (!stopped) onUpdateUser(refreshed);
-          setSubscriptionNotice('订阅已自动续订');
-          setTimeout(() => setSubscriptionNotice(null), 2000);
-        } else if (auto.message) {
-          setSubscriptionNotice(`自动续订失败：${auto.message}`);
-          setTimeout(() => setSubscriptionNotice(null), 2500);
-        }
-
         const nextSub = await DataService.getSubscription();
         if (stopped) return;
         setSubscription(nextSub as any);
-        if (auto.renewed && nextSub?.tier) {
-          const price = SUBSCRIPTION_PRICES[nextSub.tier] ?? 0;
-          void MvuBridge.appendThisTurnAppOperationLog(`自动续订 VIP${nextSub.tier.slice(3)}（-¥${price.toLocaleString()}）`);
-        }
       } catch (err) {
         console.warn('[HypnoOS] 订阅/时间同步失败', err);
       }
@@ -636,18 +619,9 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
   const remainingSubscriptionText = useMemo(() => {
     if (debugEnabled) return 'DEBUG 已解锁';
-    if (!subscription) return '未订阅';
-    if (nowVirtualMinutes === null) return '订阅中';
-    const diff = subscription.endVirtualMinutes - nowVirtualMinutes;
-    if (diff <= 0) return `已到期（VIP${subscription.tier.slice(3)}）`;
-    const totalMin = Math.max(0, Math.floor(diff));
-    const days = Math.floor(totalMin / (24 * 60));
-    const hours = Math.floor((totalMin % (24 * 60)) / 60);
-    const mins = totalMin % 60;
-    const tierLabel = `VIP${subscription.tier.slice(3)}`;
-    if (days > 0) return `${tierLabel} 剩余 ${days}天${hours.toString().padStart(2, '0')}h`;
-    return `${tierLabel} 剩余 ${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-  }, [debugEnabled, nowVirtualMinutes, subscription]);
+    if (!subscription) return '未购买';
+    return `VIP${subscription.tier.slice(3)} 已永久解锁`;
+  }, [debugEnabled, subscription]);
 
   const missingEnergy = Math.max(0, totalEnergyCost - userData.mcEnergy);
   const missingPoints = Math.max(0, totalPointsCost - userData.ptPoints);
@@ -659,30 +633,23 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     setTimeout(onExit, 300); // Wait for animation
   };
 
-  const toggleAutoRenew = async () => {
-    if (!subscription) return;
-    const next = !subscription.autoRenew;
-    await DataService.setSubscriptionAutoRenew(next);
-    setSubscription(prev => (prev ? { ...prev, autoRenew: next } : prev));
-  };
-
   const subscribeTier = async (tier: 'VIP1' | 'VIP2' | 'VIP3' | 'VIP4' | 'VIP5') => {
     if (!canSubscribeTier(tier)) {
       window.alert(`未解锁：需要累计消耗 ${DataService.getSubscriptionUnlockThreshold(tier)} 点`);
       return;
     }
-    const result = await DataService.subscribeOrRenew({ tier, nowVirtualMinutes });
+    const result = await DataService.subscribeOrRenew({ tier });
     if (!result.ok) {
-      window.alert(result.message || '订阅失败');
+      window.alert(result.message || '购买失败');
       return;
     }
     const refreshed = await DataService.getUserData();
     onUpdateUser(refreshed);
     setSubscription(result.subscription ?? null);
-    setSubscriptionNotice('订阅成功');
+    setSubscriptionNotice('购买成功');
     setTimeout(() => setSubscriptionNotice(null), 2000);
     const price = SUBSCRIPTION_PRICES[tier] ?? 0;
-    void MvuBridge.appendThisTurnAppOperationLog(`订阅 VIP${tier.slice(3)}（-¥${price.toLocaleString()}）`);
+    void MvuBridge.appendThisTurnAppOperationLog(`购买 VIP${tier.slice(3)}（-${price} PT）`);
   };
 
   const purchaseFeature = async (feature: HypnosisFeature) => {
@@ -704,7 +671,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     setDebugEnabled(true);
     onUpdateUser({
       ...userData,
-      money: 999999,
       mcEnergy: 999999,
       mcEnergyMax: 999999,
       ptPoints: 999999,
@@ -857,7 +823,14 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   };
 
   const handleStop = () => {
-    // Fade out effect could be added here
+    // 结束前生成一句简述并写入「催眠经历」
+    const enabledForLog = features.filter(
+      f => f.isEnabled && f.id !== 'vip1_stats' && canUseEnabledFeature(f),
+    );
+    const part = enabledForLog.length ? enabledForLog.map(f => f.title).join('、') : '基础';
+    const sentence = `${duration}分钟催眠：${part}。${globalNote?.trim() ? `（${globalNote.trim()}）` : ''}`;
+    void DataService.appendHypnosisExperience(sentence);
+
     setIsActive(false);
     setSessionEndVirtualMinutes(null);
     setSessionEndAtMs(null);
@@ -875,7 +848,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   }, [quickSupplyQtyInput]);
 
   const purchaseEnergy = async (desiredAmount: number) => {
-    const unitPrice = 100;
+    const unitPricePt = 1;
     const amount = Math.floor(desiredAmount);
     if (!Number.isFinite(amount) || amount <= 0) return;
 
@@ -883,14 +856,14 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     const actualAmount = Math.min(missing, amount);
     if (actualAmount <= 0) return;
 
-    const costMoney = unitPrice * actualAmount;
-    if (userData.money < costMoney) return;
+    const costPt = unitPricePt * actualAmount;
+    if (userData.ptPoints < costPt) return;
 
-    const nextMoney = userData.money - costMoney;
+    const nextPt = userData.ptPoints - costPt;
     const nextEnergy = Math.min(userData.mcEnergyMax, userData.mcEnergy + actualAmount);
     try {
       const persisted = await DataService.updateResources({
-        money: nextMoney,
+        ptPoints: nextPt,
         mcEnergy: nextEnergy,
       });
       onUpdateUser(persisted);
@@ -898,11 +871,11 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       console.warn('[HypnoOS] 购买能量持久化失败', err);
       onUpdateUser({
         ...userData,
-        money: nextMoney,
+        ptPoints: nextPt,
         mcEnergy: nextEnergy,
       });
     }
-    void MvuBridge.appendThisTurnAppOperationLog(`购买能量 +${actualAmount} MC（-¥${costMoney.toLocaleString()}）`);
+    void MvuBridge.appendThisTurnAppOperationLog(`购买能量 +${actualAmount} MC（-${costPt} PT）`);
   };
 
   const purchaseMaxEnergy = async (desiredAmount: number) => {
@@ -932,32 +905,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     void MvuBridge.appendThisTurnAppOperationLog(`提升能量上限 +${amount}（-${amount} PT）`);
   };
 
-  const purchasePoints = async (desiredAmount: number) => {
-    const unitPrice = 1000;
-    const amount = Math.floor(desiredAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
-
-    const costMoney = unitPrice * amount;
-    if (userData.money < costMoney) return;
-
-    const nextPoints = userData.ptPoints + amount;
-    const nextMoney = userData.money - costMoney;
-    try {
-      const persisted = await DataService.updateResources({
-        ptPoints: nextPoints,
-        money: nextMoney,
-      });
-      onUpdateUser(persisted);
-    } catch (err) {
-      console.warn('[HypnoOS] 充值点数持久化失败', err);
-      onUpdateUser({
-        ...userData,
-        ptPoints: nextPoints,
-        money: nextMoney,
-      });
-    }
-    void MvuBridge.appendThisTurnAppOperationLog(`充值点数 +${amount} PT（-¥${costMoney.toLocaleString()}）`);
-  };
 
   // --- Render Helpers ---
 
@@ -973,7 +920,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
     const formatFeatureCost = (feature: HypnosisFeature) => {
       const currency = feature.costCurrency === 'PT_POINTS' ? 'PT' : 'MC';
-      if (feature.id === 'vip1_stats') return '订阅后自动解锁';
+      if (feature.id === 'vip1_stats') return '购买后自动解锁';
       if (feature.id === 'vip1_temp_sensitivity') return `每点敏感度: 2 ${currency}`;
       if (feature.id === 'vip1_estrus') return `每点性欲: ${feature.costValue} ${currency}`;
       if (feature.id === 'vip1_memory_erase') return `每分钟记忆: ${feature.costValue} ${currency}`;
@@ -1058,7 +1005,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                       )}
                       {!isLocked && lockedBySubscription && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-gray-200 flex items-center gap-1">
-                          <Lock size={10} className="text-gray-300" /> 未订阅
+                          <Lock size={10} className="text-gray-300" /> 未购买
                         </span>
                       )}
                       {!lockedByPurchase && feature.purchaseRequired && feature.isPurchased && (
@@ -1249,10 +1196,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                 ></div>
               </div>
               <div className="mt-1 flex items-center justify-between text-[9px] text-gray-500">
-                <span className="truncate">订阅: {remainingSubscriptionText}</span>
-                {!debugEnabled && subscription && (
-                  <span className="ml-2 shrink-0">{subscription.autoRenew ? '自动续订:开' : '自动续订:关'}</span>
-                )}
+                <span className="truncate">会员: {remainingSubscriptionText}</span>
               </div>
             </div>
 
@@ -1294,10 +1238,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                   {userData.suspicion}%
                 </div>
               </div>
-              <div className="bg-black/30 rounded-lg p-2 text-center border border-white/5">
-                <div className="text-[10px] text-gray-400 mb-1">资金 (円)</div>
-                <div className="text-sm font-semibold text-yellow-400">¥{userData.money.toLocaleString()}</div>
-              </div>
             </div>
 
             {/* Quick Store Area */}
@@ -1328,8 +1268,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                   onClick={() => void purchaseEnergy(quickSupplyQty)}
                   disabled={
                     Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)) <= 0 ||
-                    userData.money <
-                    Math.min(Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)), quickSupplyQty) * 100
+                    userData.ptPoints <
+                    Math.min(Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)), quickSupplyQty) * 1
                   }
                   className="flex flex-col items-start bg-blue-900/20 border border-blue-500/20 hover:bg-blue-900/30 p-2 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1338,10 +1278,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                     <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 rounded">
                       {Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)) <= 0
                         ? '已满'
-                        : `¥${(
-                          Math.min(Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)), quickSupplyQty) *
-                          100
-                        ).toLocaleString()}`}
+                        : `${Math.min(Math.max(0, userData.mcEnergyMax - Math.floor(userData.mcEnergy)), quickSupplyQty)} PT`}
                     </span>
                   </div>
                   <div className="text-xs font-bold text-gray-200">
@@ -1366,50 +1303,18 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                   <div className="text-xs font-bold text-gray-200">上限 +{quickSupplyQty}</div>
                 </button>
               </div>
-
-              {/* Buy Points */}
-              <button
-                onClick={() => void purchasePoints(quickSupplyQty)}
-                disabled={userData.money < quickSupplyQty * 1000}
-                className="w-full flex justify-between items-center bg-white/5 hover:bg-white/10 p-2 rounded-lg border border-white/5 transition-colors active:scale-[0.98]"
-              >
-                <span className="text-xs text-gray-300 flex items-center gap-2">
-                  <RefreshCcw size={12} /> 充值 {quickSupplyQty} PT点数
-                </span>
-                <span className="text-xs font-bold text-yellow-400">¥{(quickSupplyQty * 1000).toLocaleString()}</span>
-              </button>
             </div>
 
             {/* Subscription Area */}
             <div className="mt-4 space-y-2">
               <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                <Lock size={10} /> 订阅中心（每周）
+                <Lock size={10} /> 会员购买
               </div>
 
               <div className="p-3 rounded-xl border border-white/10 bg-black/20">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-300">当前订阅</div>
+                  <div className="text-xs text-gray-300">当前会员</div>
                   <div className="text-xs font-bold text-gray-100">{remainingSubscriptionText}</div>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <button
-                    onClick={() => void toggleAutoRenew()}
-                    disabled={!subscription || debugEnabled}
-                    className="text-[10px] px-2 py-1 rounded-lg border border-white/10 bg-white/5 text-gray-300 disabled:opacity-40"
-                  >
-                    自动续订: {subscription?.autoRenew ? '开' : '关'}
-                  </button>
-                  {subscription &&
-                    !debugEnabled &&
-                    nowVirtualMinutes !== null &&
-                    subscription.endVirtualMinutes <= nowVirtualMinutes && (
-                      <button
-                        onClick={() => void subscribeTier(subscription.tier)}
-                        className="text-[10px] px-3 py-1 rounded-lg bg-amber-500 text-black font-bold"
-                      >
-                        续订
-                      </button>
-                    )}
                 </div>
                 {subscriptionNotice && <div className="mt-2 text-[10px] text-pink-300">{subscriptionNotice}</div>}
               </div>
@@ -1419,20 +1324,12 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                   const price = SUBSCRIPTION_PRICES[tier];
                   const lockedByUnlock = !canSubscribeTier(tier);
                   const isCurrent = subscription?.tier === tier;
-                  const activeNow = subscriptionActive && Boolean(subscription);
-                  const label =
-                    !subscription || !activeNow
-                      ? '订阅'
-                      : isCurrent
-                        ? '续订'
-                        : subscriptionTiers.indexOf(tier) > subscriptionTiers.indexOf(subscription!.tier)
-                          ? '升级'
-                          : '订阅';
+                  const label = isCurrent ? '已购买' : '购买';
                   return (
                     <button
                       key={tier}
                       onClick={() => void subscribeTier(tier)}
-                      disabled={debugEnabled || lockedByUnlock || userData.money < price}
+                      disabled={debugEnabled || lockedByUnlock || isCurrent || userData.ptPoints < price}
                       className="w-full flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <div className="flex flex-col items-start">
@@ -1440,7 +1337,9 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                         <div className="text-[10px] text-gray-400">
                           {lockedByUnlock
                             ? `需累计消耗 ${DataService.getSubscriptionUnlockThreshold(tier)}`
-                            : `${label} ¥${price.toLocaleString()}/周`}
+                            : isCurrent
+                              ? '已永久解锁'
+                              : `${price} PT 购买`}
                         </div>
                       </div>
                       <div className="text-[10px] font-bold text-yellow-300">{lockedByUnlock ? '未解锁' : label}</div>
@@ -1557,40 +1456,37 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                 <button
                   onClick={() =>
                     void (async () => {
-                      const topUpCost = missingEnergy * 100 + missingPoints * 1000;
-                      if (userData.money < topUpCost) return;
+                      const topUpCostPt = missingEnergy * 1 + missingPoints * 10;
+                      if (userData.ptPoints < topUpCostPt) return;
 
-                      const nextMoney = userData.money - topUpCost;
+                      const nextPt = userData.ptPoints - topUpCostPt + missingPoints;
                       const nextEnergy = Math.min(userData.mcEnergyMax, userData.mcEnergy + missingEnergy);
-                      const nextPoints = userData.ptPoints + missingPoints;
 
                       try {
                         const persisted = await DataService.updateResources({
-                          money: nextMoney,
+                          ptPoints: nextPt,
                           mcEnergy: nextEnergy,
-                          ptPoints: nextPoints,
                         });
                         onUpdateUser(persisted);
                       } catch (err) {
                         console.warn('[HypnoOS] 补齐资源持久化失败', err);
                         onUpdateUser({
                           ...userData,
-                          money: nextMoney,
+                          ptPoints: nextPt,
                           mcEnergy: nextEnergy,
-                          ptPoints: nextPoints,
                         });
                       }
 
                       void MvuBridge.appendThisTurnAppOperationLog(
-                        `补齐资源（-¥${topUpCost.toLocaleString()}, +${missingEnergy} MC, +${missingPoints} PT）`,
+                        `补齐资源（-${topUpCostPt} PT, +${missingEnergy} MC, +${missingPoints} PT）`,
                       );
                       setShowLowEnergyModal(false);
                     })()
                   }
-                  disabled={userData.money < missingEnergy * 100 + missingPoints * 1000}
+                  disabled={userData.ptPoints < missingEnergy * 1 + missingPoints * 10}
                   className="w-full py-3 bg-white text-black font-bold rounded-xl active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  花费 ¥{missingEnergy * 100 + missingPoints * 1000} 补齐
+                  花费 {missingEnergy * 1 + missingPoints * 10} PT 补齐
                 </button>
                 <button
                   onClick={() => setShowLowEnergyModal(false)}

@@ -1,23 +1,23 @@
-// 催眠APP - 每日结算脚本
-// 目标：
-// 1) 当“系统.当前时间”跨天但“系统.当前日期”未更新时，自动推进日期
-// 2) 按跨越天数恢复“系统._MC能量”（每天恢复“系统._MC能量上限”的 50%）
-// 3) 每天降低“系统.主角可疑度”10点，降低每个“角色.*.警戒度”10点
-// 4) 每个角色每 5 点“警戒度”，每天会增加 1 点“主角可疑度”
-// 5) 每个角色“堕落值”：每天 -1（不低于 0），≥80 时不再自然下降
-
+// 催眠APP 脚本：每日结算 + 主界面手机图标（点击打开前端界面）
+// 每日结算目标：见下方 applyDailySettlement
+// 外挂用法：安装并启用本脚本后，酒馆主界面会出现手机图标，点击即可打开催眠APP前端；未打开角色卡时前端会提示先打开角色卡。
+/// <reference path="./shims.d.ts" />
 import _ from 'lodash';
+import { createScriptIdDiv } from '@/util/script';
 
 const UPDATE_REASON = '催眠APP脚本：每日结算';
 
+/** 与主卡 MVU 隔离的命名空间前缀（外挂模式） */
+const MVU_PREFIX = '催眠APP';
+
 const PATHS = {
-  system: '系统',
-  roles: '角色',
-  date: '系统.当前日期',
-  time: '系统.当前时间',
-  suspicion: '系统.主角可疑度',
-  mcEnergy: ['系统._MC能量', '系统.MC能量'],
-  mcEnergyMax: ['系统._MC能量上限', '系统.MC能量上限'],
+  system: `${MVU_PREFIX}.系统`,
+  roles: `${MVU_PREFIX}.角色`,
+  date: `${MVU_PREFIX}.系统.当前日期`,
+  time: `${MVU_PREFIX}.系统.当前时间`,
+  suspicion: `${MVU_PREFIX}.系统.主角可疑度`,
+  mcEnergy: [`${MVU_PREFIX}.系统._MC能量`, `${MVU_PREFIX}.系统.MC能量`],
+  mcEnergyMax: [`${MVU_PREFIX}.系统._MC能量上限`, `${MVU_PREFIX}.系统.MC能量上限`],
 } as const;
 
 const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
@@ -181,14 +181,20 @@ async function applyDailySettlement(mvu: Mvu.MvuData, before: Mvu.MvuData): Prom
   const beforeTime = _.get(statBefore, PATHS.time);
   const afterTime = _.get(statAfter, PATHS.time);
 
-  const { dayDelta, isDateMissingUpdate, nextDateText } = resolveDayDelta(beforeDate, afterDate, beforeTime, afterTime);
+  // 本世界书已不再维护日期/时间；若主卡也未提供，则不做每日结算，便于外挂随时开关
+  const hasTime = beforeTime != null && afterTime != null && String(beforeTime).trim() !== '' && String(afterTime).trim() !== '';
+  const hasDate = (beforeDate != null && String(beforeDate).trim() !== '') || (afterDate != null && String(afterDate).trim() !== '');
+  if (!hasTime && !hasDate) return false;
+
+  const { dayDelta, isDateMissingUpdate } = resolveDayDelta(beforeDate, afterDate, beforeTime, afterTime);
   if (dayDelta <= 0 && !isDateMissingUpdate) return false;
 
   let changed = false;
 
-  if (isDateMissingUpdate && typeof nextDateText === 'string') {
-    if (await setIfChanged(mvu, PATHS.date, nextDateText)) changed = true;
-  }
+  // 不写入当前日期，由主角色卡管理，便于世界书随时开启/关闭
+  // if (isDateMissingUpdate && typeof nextDateText === 'string') {
+  //   if (await setIfChanged(mvu, PATHS.date, nextDateText)) changed = true;
+  // }
 
   const energyPath = pickExistingPath(statAfter, PATHS.mcEnergy);
   const energyMaxPath = pickExistingPath(statAfter, PATHS.mcEnergyMax);
@@ -229,17 +235,7 @@ async function applyDailySettlement(mvu: Mvu.MvuData, before: Mvu.MvuData): Prom
       const nextAlertness = Math.max(0, alertness - 10 * dayDelta);
       if (await setIfChanged(mvu, alertnessPath, nextAlertness)) changed = true;
 
-      // 堕落值：每天 -1（不低于 0），≥80 时不再自然下降
-      const corruptionPath = `${PATHS.roles}.${roleName}.堕落值`;
-      const corruption = toFiniteNumber(_.get(statAfter, corruptionPath), null);
-      if (corruption !== null) {
-        const current = Math.max(0, corruption);
-        const nextCorruption =
-          current >= 80 ? current : Math.max(0, current - dayDelta);
-        if (nextCorruption !== current && (await setIfChanged(mvu, corruptionPath, nextCorruption))) {
-          changed = true;
-        }
-      }
+      // 堕落值由主角色卡管理，不在此结算（世界书外挂不干扰主卡玩法）
     }
   }
 
@@ -251,7 +247,120 @@ async function applyDailySettlement(mvu: Mvu.MvuData, before: Mvu.MvuData): Prom
   return changed;
 }
 
+/** 前端界面 URL：与脚本同源时自动推导（脚本在 .../催眠APP脚本/index.js，前端在 .../催眠APP前端/index.html），否则需在脚本变量中设置 催眠APP前端URL */
+function getHypnosisAppFrontendUrl(): string {
+  try {
+    const vars = getVariables({ type: 'script', script_id: getScriptId() }) as Record<string, unknown> | undefined;
+    const url = typeof vars?.催眠APP前端URL === 'string' ? vars.催眠APP前端URL.trim() : '';
+    if (url) return url;
+  } catch {
+    // ignore
+  }
+  try {
+    const scriptEl = document.currentScript as HTMLScriptElement | null;
+    const src = scriptEl?.src ?? '';
+    if (src) {
+      const base = src.replace(/\/[^/]*$/, '');
+      return `${base.replace(/\/催眠APP脚本\/?$/, '')}/催眠APP前端/index.html`;
+    }
+  } catch {
+    // ignore
+  }
+  return '';
+}
+
 $(() => {
+  const frontendUrl = getHypnosisAppFrontendUrl();
+  const $container = createScriptIdDiv();
+  $container.css({ position: 'fixed', bottom: '16px', right: '16px', zIndex: 99998, pointerEvents: 'none' });
+  $container.find('*').css('pointerEvents', 'auto');
+  const $btn = $('<button>')
+    .attr({ type: 'button', title: '打开催眠APP' })
+    .css({
+      width: '44px',
+      height: '44px',
+      borderRadius: '12px',
+      border: 'none',
+      background: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)',
+      color: '#fff',
+      cursor: 'pointer',
+      boxShadow: '0 4px 14px rgba(124,58,237,0.4)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 0,
+    })
+    .html(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+    )
+    .on('click', () => {
+      if (!frontendUrl) {
+        toastr?.warning?.('未配置前端地址：请在脚本变量中设置 催眠APP前端URL，或确保脚本与前端同源部署');
+        return;
+      }
+      const overlayId = `hypnosis_app_overlay_${getScriptId()}`;
+      if ($(`#${overlayId}`).length) {
+        $(`#${overlayId}`).remove();
+        return;
+      }
+      const $overlay = $('<div>')
+        .attr('id', overlayId)
+        .css({
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          boxSizing: 'border-box',
+        })
+        .on('click', e => {
+          if (e.target === e.currentTarget) $overlay.remove();
+        });
+      const $frameWrap = $('<div>')
+        .css({
+          width: '100%',
+          maxWidth: '420px',
+          height: '90%',
+          maxHeight: '800px',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          background: '#0f0f0f',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          position: 'relative',
+        })
+        .on('click', e => e.stopPropagation());
+      const $close = $('<button>')
+        .attr({ type: 'button', title: '关闭' })
+        .css({
+          position: 'absolute',
+          top: '8px',
+          right: '8px',
+          zIndex: 10,
+          width: '32px',
+          height: '32px',
+          borderRadius: '8px',
+          border: 'none',
+          background: 'rgba(255,255,255,0.15)',
+          color: '#fff',
+          cursor: 'pointer',
+          fontSize: '18px',
+          lineHeight: 1,
+        })
+        .text('×')
+        .on('click', () => $overlay.remove());
+      const $iframe = $('<iframe>')
+        .attr({ src: frontendUrl, title: '催眠APP' })
+        .css({ width: '100%', height: '100%', border: 'none', display: 'block', minHeight: '500px' });
+      $frameWrap.append($close).append($iframe);
+      $overlay.append($frameWrap);
+      $('body').append($overlay);
+    });
+  $container.append($btn);
+  $('body').append($container);
+
   (async () => {
     try {
       await waitGlobalInitialized('Mvu');
