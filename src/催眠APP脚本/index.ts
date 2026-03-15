@@ -1,4 +1,4 @@
-// 催眠APP 脚本：仅提供主界面手机图标，点击打开前端界面
+// 催眠APP 脚本：仅提供主界面手机图标，点击打开前端界面。请挂在「角色卡脚本」下使用。
 // 把下面引号里的地址改成你的前端页面 URL，粘贴到酒馆后即可用（无需再配脚本变量）
 /// <reference path="./shims.d.ts" />
 import { createScriptIdDiv } from '@/util/script';
@@ -194,7 +194,30 @@ function openFrontend() {
       dragBar.style.cursor = 'grabbing';
     });
 
+    // 前端在独立 iframe 中运行，需从本脚本所在窗口（角色卡上下文）注入酒馆 API
+    const injectApisIntoFrontend = () => {
+      try {
+        const win = iframe.contentWindow as Window & Record<string, unknown> | null;
+        if (!win) return;
+        const raw = (window as any);
+        const s = (raw.getVariables ? raw : raw.parent ?? raw.top ?? raw) as Record<string, unknown>;
+        if (typeof s.getVariables === 'function') win.getVariables = s.getVariables;
+        if (typeof s.replaceVariables === 'function') win.replaceVariables = s.replaceVariables;
+        if (typeof s.updateVariablesWith === 'function') win.updateVariablesWith = s.updateVariablesWith;
+        if (typeof s.getCurrentMessageId === 'function') win.getCurrentMessageId = s.getCurrentMessageId;
+        if (typeof s.getCurrentCharacterName === 'function') win.getCurrentCharacterName = s.getCurrentCharacterName;
+        if (typeof s.Mvu !== 'undefined') win.Mvu = s.Mvu;
+        if (typeof s.eventOn === 'function') win.eventOn = s.eventOn;
+        if (typeof s.tavern_events !== 'undefined') win.tavern_events = s.tavern_events;
+        if (typeof s.waitGlobalInitialized === 'function') win.waitGlobalInitialized = s.waitGlobalInitialized;
+        if (typeof (window as any).$ !== 'undefined') (win as any).$ = (window as any).$;
+      } catch (err) {
+        console.warn('[催眠APP脚本] 向前端注入 API 失败', err);
+      }
+    };
+
     const baseUrl = frontendUrl.replace(/\/[^/]*$/, '/');
+    iframe.addEventListener('load', injectApisIntoFrontend);
     fetch(frontendUrl)
       .then(r => r.text())
       .then(html => {
