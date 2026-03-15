@@ -219,7 +219,11 @@ function openFrontend() {
     };
 
     const baseUrl = frontendUrl.replace(/\/[^/]*$/, '/');
-    iframe.addEventListener('load', injectApisIntoFrontend);
+    iframe.addEventListener('load', () => {
+      injectApisIntoFrontend();
+      // 若 load 时酒馆助手尚未就绪，延迟再注入一次，确保 createChatMessages/triggerSlash 可用
+      setTimeout(injectApisIntoFrontend, 400);
+    });
     fetch(frontendUrl)
       .then(r => r.text())
       .then(html => {
@@ -239,19 +243,36 @@ function openFrontend() {
   }
 }
 
+const HYPNOSIS_APP_BTN_MARKER = 'data-hypnosis-app-btn';
+
+function removeHypnosisAppButtonAndOverlay() {
+  const scriptId = getScriptId();
+  $(`[${HYPNOSIS_APP_BTN_MARKER}][script_id="${scriptId}"]`).remove();
+  const topDoc = window.top && window.top.document ? window.top.document : document;
+  const overlay = topDoc.getElementById(OVERLAY_ID);
+  if (overlay) overlay.remove();
+}
+
 $(() => {
+  // 局部脚本：退出角色卡时需移除按钮；再次进入会重新执行此处，先移除旧节点避免重复
+  removeHypnosisAppButtonAndOverlay();
+
   const btnHtml =
     '<button type="button" title="打开催眠APP" style="width:44px;height:44px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed 0%,#db2777 100%);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;padding:0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></button>';
   const $btn = $(btnHtml).on('click', openFrontend);
 
+  const $wrapper = createScriptIdDiv().attr(HYPNOSIS_APP_BTN_MARKER, '1').append($btn);
+
   const $sendBar = $('#send_but').parent();
   if ($sendBar.length) {
-    $sendBar.prepend($btn);
+    $sendBar.prepend($wrapper);
   } else {
-    const $container = createScriptIdDiv();
+    const $container = createScriptIdDiv().attr(HYPNOSIS_APP_BTN_MARKER, '1');
     $container.css({ position: 'fixed', bottom: '16px', right: '16px', zIndex: 99998, pointerEvents: 'none' });
     $container.find('*').css('pointerEvents', 'auto');
-    $container.append($btn);
+    $container.append($wrapper);
     $('body').append($container);
   }
+
+  $(window).on('pagehide', removeHypnosisAppButtonAndOverlay);
 });

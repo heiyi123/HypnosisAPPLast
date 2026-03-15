@@ -703,12 +703,25 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
         globalNote,
       });
 
-      if (typeof createChatMessages === 'function' && typeof triggerSlash === 'function') {
-        await createChatMessages([{ role: 'user', message }], { refresh: 'affected' });
-        await triggerSlash('/trigger');
+      const g = globalThis as typeof globalThis & Record<string, unknown>;
+      const createChatMessagesFn = typeof g.createChatMessages === 'function'
+        ? g.createChatMessages
+        : (g.parent as typeof g)?.['createChatMessages'] ?? (g.top as typeof g)?.['createChatMessages'];
+      const triggerSlashFn = typeof g.triggerSlash === 'function'
+        ? g.triggerSlash
+        : (g.parent as typeof g)?.['triggerSlash'] ?? (g.top as typeof g)?.['triggerSlash'];
+
+      if (typeof createChatMessagesFn === 'function' && typeof triggerSlashFn === 'function') {
+        await createChatMessagesFn([{ role: 'user', message }], { refresh: 'affected' });
+        await triggerSlashFn('/trigger');
+      } else if (typeof (globalThis as any).toastr !== 'undefined' && (globalThis as any).toastr?.warning) {
+        (globalThis as any).toastr.warning('当前环境未提供发送接口，请确保通过催眠APP脚本打开本界面。');
       }
     } catch (err) {
       console.warn('[HypnoOS] 催眠发送失败', err);
+      if (typeof (globalThis as any).toastr !== 'undefined' && (globalThis as any).toastr?.error) {
+        (globalThis as any).toastr.error('发送失败：' + (err instanceof Error ? err.message : String(err)));
+      }
     }
 
     // Mock Backend Call
