@@ -1,7 +1,10 @@
 // 催眠APP 脚本：仅提供主界面手机图标，点击打开前端界面
-// 前端地址：脚本变量「催眠APP前端URL」或由粘贴加载器设置的 window.__催眠APP前端URL
+// 把下面引号里的地址改成你的前端页面 URL，粘贴到酒馆后即可用（无需再配脚本变量）
 /// <reference path="./shims.d.ts" />
 import { createScriptIdDiv } from '@/util/script';
+
+/** 直接写在这里，粘贴到酒馆后若需改地址只需改这一处 */
+const HYPNOSIS_APP_FRONTEND_URL = 'REPLACE_WITH_YOUR_FRONTEND_URL';
 
 type WinWithUrl = Window & { __催眠APP前端URL?: string };
 
@@ -18,6 +21,8 @@ function readFrontendUrlFromWin(w: WinWithUrl | null | undefined): string {
 }
 
 function getHypnosisAppFrontendUrl(): string {
+  const fromConst = typeof HYPNOSIS_APP_FRONTEND_URL === 'string' ? HYPNOSIS_APP_FRONTEND_URL.trim() : '';
+  if (fromConst && fromConst !== 'REPLACE_WITH_YOUR_FRONTEND_URL') return fromConst;
   try {
     const w = typeof window !== 'undefined' ? window : null;
     const cand = [w, w?.parent, w?.top].filter(Boolean);
@@ -74,7 +79,7 @@ $(() => {
     .on('click', () => {
       const frontendUrl = getHypnosisAppFrontendUrl();
       if (!frontendUrl) {
-        const msg = '未配置前端地址：请在脚本变量中设置 催眠APP前端URL，或使用带前端URL的粘贴加载器';
+        const msg = '未配置前端地址：请把脚本里的 REPLACE_WITH_YOUR_FRONTEND_URL 改成你的前端页面地址';
         console.warn('[催眠APP脚本]', msg);
         if (typeof toastr !== 'undefined' && toastr.warning) toastr.warning(msg);
         else if (typeof alert !== 'undefined') alert(msg);
