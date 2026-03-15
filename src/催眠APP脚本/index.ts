@@ -120,21 +120,35 @@ function openFrontend() {
     });
     closeBtn.textContent = '×';
     closeBtn.addEventListener('click', () => overlay.remove());
-    const contentDiv = targetDoc.createElement('div');
-    Object.assign(contentDiv.style, {
+    const iframe = targetDoc.createElement('iframe');
+    iframe.title = '催眠APP';
+    Object.assign(iframe.style, {
       width: '100%',
       height: '100%',
-      minHeight: '500px',
-      overflow: 'auto',
+      border: 'none',
       display: 'block',
-      boxSizing: 'border-box',
-      paddingTop: '40px',
+      minHeight: '500px',
+      background: '#0f0f0f',
     });
     frameWrap.appendChild(closeBtn);
-    frameWrap.appendChild(contentDiv);
+    frameWrap.appendChild(iframe);
     overlay.appendChild(frameWrap);
     targetDoc.body.appendChild(overlay);
-    $(contentDiv).load(frontendUrl);
+
+    const baseUrl = frontendUrl.replace(/\/[^/]*$/, '/');
+    fetch(frontendUrl)
+      .then(r => r.text())
+      .then(html => {
+        const baseTag = '<base href="' + baseUrl + '">';
+        const withBase = /<head(\s[^>]*)?>/i.test(html)
+          ? html.replace(/<head(\s[^>]*)?>/i, '<head$1>' + baseTag)
+          : html.replace(/<body(\s[^>]*)?>/i, '<body$1>' + baseTag);
+        iframe.srcdoc = withBase;
+      })
+      .catch(err => {
+        console.error('[催眠APP脚本] 拉取前端 HTML 失败', err);
+        if (typeof toastr !== 'undefined' && toastr.error) toastr.error('加载前端失败，请检查地址或网络');
+      });
   } catch (err) {
     console.error('[催眠APP脚本] 打开前端失败', err);
     if (typeof alert !== 'undefined') alert('催眠APP脚本报错: ' + (err instanceof Error ? err.message : String(err)));
