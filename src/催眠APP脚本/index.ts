@@ -3,7 +3,7 @@
 /// <reference path="./shims.d.ts" />
 import { createScriptIdDiv } from '@/util/script';
 
-/** 直接写在这里，粘贴到酒馆后若需改地址只需改这一处 */
+/** 直接写在这里。用 .load() 拉取 HTML，故可用 jsDelivr 的 index.html 链接（如 https://testingcf.jsdelivr.net/gh/用户/仓库/dist/催眠APP前端/index.html），无需 GitHub Pages */
 const HYPNOSIS_APP_FRONTEND_URL = 'REPLACE_WITH_YOUR_FRONTEND_URL';
 
 type WinWithUrl = Window & { __催眠APP前端URL?: string };
@@ -120,20 +120,21 @@ function openFrontend() {
     });
     closeBtn.textContent = '×';
     closeBtn.addEventListener('click', () => overlay.remove());
-    const iframe = targetDoc.createElement('iframe');
-    iframe.src = frontendUrl;
-    iframe.title = '催眠APP';
-    Object.assign(iframe.style, {
+    const contentDiv = targetDoc.createElement('div');
+    Object.assign(contentDiv.style, {
       width: '100%',
       height: '100%',
-      border: 'none',
-      display: 'block',
       minHeight: '500px',
+      overflow: 'auto',
+      display: 'block',
+      boxSizing: 'border-box',
+      paddingTop: '40px',
     });
     frameWrap.appendChild(closeBtn);
-    frameWrap.appendChild(iframe);
+    frameWrap.appendChild(contentDiv);
     overlay.appendChild(frameWrap);
     targetDoc.body.appendChild(overlay);
+    $(contentDiv).load(frontendUrl);
   } catch (err) {
     console.error('[催眠APP脚本] 打开前端失败', err);
     if (typeof alert !== 'undefined') alert('催眠APP脚本报错: ' + (err instanceof Error ? err.message : String(err)));
