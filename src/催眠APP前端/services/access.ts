@@ -23,10 +23,9 @@ function toFiniteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** 解锁该档位所需 PT（支付即解锁，无累计要求） */
-export function getSubscriptionPricePt(tier: SubscriptionTier): number {
-  const cfg = VIP_LEVELS.find(v => v.tier === tier);
-  return toFiniteNumber((cfg as { subscriptionPricePt?: number })?.subscriptionPricePt) ?? 0;
+/** 解锁该档位所需条件（已不再依赖点数，仅做占位） */
+export function getSubscriptionPricePt(_tier: SubscriptionTier): number {
+  return 0;
 }
 
 export const getSubscriptionUnlockThreshold = getSubscriptionPricePt;
@@ -36,8 +35,8 @@ export function canSubscribeTier(ctx: {
   debugEnabled: boolean;
   ptPoints: number;
 }): boolean {
-  if (ctx.debugEnabled) return true;
-  return ctx.ptPoints >= getSubscriptionPricePt(ctx.tier);
+  void ctx;
+  return true;
 }
 
 /** 购买制：只要存在已购买档位即视为有效，永久解锁。 */

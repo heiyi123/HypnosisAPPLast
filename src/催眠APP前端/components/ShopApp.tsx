@@ -158,26 +158,14 @@ export const ShopApp: React.FC<ShopAppProps> = ({ userData, onUpdateUser, onBack
     window.setTimeout(() => setNotice(null), 2200);
   };
 
-  const priceToPt = (price: number) => Math.ceil(price / 100);
-
   const handlePurchase = async (item: ShopItem) => {
     if (submittingId) return;
-    const costPt = priceToPt(item.price);
-    if (userData.ptPoints < costPt) {
-      showNotice('PT 点不足，无法购买该物品');
-      return;
-    }
 
     setSubmittingId(item.id);
     try {
-      const nextUser = await DataService.updateResources({
-        ptPoints: userData.ptPoints - costPt,
-      });
-      onUpdateUser(nextUser);
-
       try {
         await MvuBridge.purchaseItem?.(item.name, item.description, 1);
-        await MvuBridge.appendThisTurnAppOperationLog?.(`在商城购买「${item.name}」x1（-${costPt} PT）`);
+        await MvuBridge.appendThisTurnAppOperationLog?.(`在商城购买「${item.name}」x1`);
       } catch (err) {
         console.warn('[HypnoOS] 物品写入 MVU 失败', err);
       }
@@ -203,21 +191,14 @@ export const ShopApp: React.FC<ShopAppProps> = ({ userData, onUpdateUser, onBack
               <ShoppingBag size={18} className="text-emerald-300" />
               商城
             </h1>
-            <p className="text-xs text-gray-400">使用 PT 点购买预设道具，道具会写入系统的持有物品。</p>
+            <p className="text-xs text-gray-400">从列表中选择并购买预设道具，道具会写入系统的持有物品。</p>
           </div>
         </div>
-        <div className="flex flex-col items-end text-xs text-gray-300">
-          <div>
-            当前 PT：
-            <span className="font-bold text-emerald-300">{userData.ptPoints}</span>
-          </div>
-        </div>
+        <div className="flex flex-col items-end text-xs text-gray-300"></div>
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
         {SHOP_ITEMS.map(item => {
-          const costPt = priceToPt(item.price);
-          const insufficient = userData.ptPoints < costPt;
           const busy = submittingId === item.id;
           return (
             <div
@@ -227,22 +208,17 @@ export const ShopApp: React.FC<ShopAppProps> = ({ userData, onUpdateUser, onBack
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-white/90 truncate">{item.name}</div>
                 <div className="text-xs text-gray-300 mt-1 leading-relaxed">{item.description}</div>
-                <div className="text-xs text-emerald-300 mt-2">
-                  价格：<span className="font-bold">{priceToPt(item.price)} PT</span>
-                </div>
+                <div className="text-xs text-emerald-300 mt-2">点击下方按钮即可购买该物品。</div>
               </div>
               <div className="shrink-0 flex flex-col items-end gap-2">
                 <button
                   type="button"
-                  disabled={insufficient || busy}
+                  disabled={busy}
                   onClick={() => void handlePurchase(item)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold shadow-md transition-all
-                    ${insufficient || busy
-                      ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
-                      : 'bg-emerald-400 text-black hover:bg-emerald-300 active:scale-95'
-                    }`}
+                    ${busy ? 'bg-gray-600 text-gray-300 cursor-not-allowed' : 'bg-emerald-400 text-black hover:bg-emerald-300 active:scale-95'}`}
                 >
-                  {busy ? '处理中...' : insufficient ? '余额不足' : '购买'}
+                  {busy ? '处理中...' : '购买'}
                 </button>
               </div>
             </div>

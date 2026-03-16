@@ -557,7 +557,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
   );
 
   const canSubscribeTier = (tier: 'VIP1' | 'VIP2' | 'VIP3' | 'VIP4' | 'VIP5') =>
-    DataService.canSubscribeTier(tier, { debugEnabled, ptPoints: userData.ptPoints });
+    DataService.canSubscribeTier(tier, { debugEnabled, ptPoints: 0 });
 
   const remainingSubscriptionText = useMemo(() => {
     if (debugEnabled) return 'DEBUG 已解锁';
@@ -575,10 +575,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
   const subscribeTier = async (tier: 'VIP1' | 'VIP2' | 'VIP3' | 'VIP4' | 'VIP5') => {
     const price = DataService.getSubscriptionUnlockThreshold(tier);
-    if (!canSubscribeTier(tier)) {
-      window.alert(`PT 不足：需要 ${price} PT`);
-      return;
-    }
+    void price;
+    if (!canSubscribeTier(tier)) return;
     const result = await DataService.subscribeOrRenew({ tier });
     if (!result.ok) {
       window.alert(result.message || '购买失败');
@@ -589,7 +587,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     setSubscription(result.subscription ?? null);
     setSubscriptionNotice('购买成功');
     setTimeout(() => setSubscriptionNotice(null), 2000);
-    void MvuBridge.appendThisTurnAppOperationLog(`购买 VIP${tier.slice(3)}（-${price} PT）`);
+    void MvuBridge.appendThisTurnAppOperationLog(`购买 VIP${tier.slice(3)}`);
   };
 
   const purchaseFeature = async (feature: HypnosisFeature) => {
@@ -601,15 +599,15 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     }
     onUpdateUser(result.user);
     setFeatures(prev => prev.map(f => (f.id === feature.id ? { ...f, isPurchased: true } : f)));
-    setSubscriptionNotice(`已购买：-${price} PT`);
+    setSubscriptionNotice('已购买');
     setTimeout(() => setSubscriptionNotice(null), 1500);
-    void MvuBridge.appendThisTurnAppOperationLog(`解锁功能「${feature.title}」（-${price} PT）`);
+    void MvuBridge.appendThisTurnAppOperationLog(`解锁功能「${feature.title}」`);
   };
 
   const enableDebugMode = async () => {
     await DataService.setDebugEnabled(true);
     setDebugEnabled(true);
-    onUpdateUser({ ...userData, ptPoints: 999999 });
+    onUpdateUser({ ...userData });
   };
 
   const toggleFeature = (id: string) => {
@@ -780,19 +778,14 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       <div key={tierConfig.tier} className="mb-6 relative">
         <div className="flex justify-between items-center mb-2 px-1">
           <h3 className="text-pink-300 font-bold text-sm tracking-wider uppercase">{tierConfig.label}</h3>
-          {isLocked && pricePt > 0 && (
-            <span className="text-xs text-gray-400 bg-gray-800 px-2 py-0.5 rounded-full">
-              支付 {pricePt} PT 解锁
-            </span>
-          )}
         </div>
 
         {/* Locked Overlay */}
         {isLocked && (
-          <div className="absolute inset-0 z-10 bg-hypno-dark/60 backdrop-blur-sm rounded-xl border border-white/5 flex flex-col items-center justify-center text-center p-4">
+          <div className="absolute inset-0 z-10 bg-hypno-dark/60 backdrop-blur-sm rounded-xl border border-white/5 flex flex-col items-center justify中心 text-center p-4">
             <Lock className="w-8 h-8 text-gray-400 mb-2" />
             <p className="text-sm text-gray-300 font-medium">区域未解锁</p>
-            <p className="text-xs text-gray-500 mt-1">支付 {pricePt} PT 可解锁该档位</p>
+            <p className="text-xs text-gray-500 mt-1">需要解锁后才能使用该档位</p>
           </div>
         )}
 
@@ -861,7 +854,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                           e.stopPropagation();
                           void purchaseFeature(feature);
                         }}
-                        disabled={userData.ptPoints < purchasePricePoints}
+                        disabled={false}
                         data-hypno-purchase={feature.id}
                         className={[
                           'text-[10px] px-3 py-1.5 rounded-xl font-extrabold tracking-wide select-none',
@@ -870,13 +863,11 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                           'shadow-[0_6px_18px_rgba(245,158,11,0.22)]',
                           'transition-transform transition-shadow duration-150',
                           'focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70',
-                          userData.ptPoints < purchasePricePoints
-                            ? 'opacity-50 cursor-not-allowed grayscale'
-                            : 'hover:shadow-[0_10px_26px_rgba(245,158,11,0.35)] active:scale-[0.97] cursor-pointer',
+                          'hover:shadow-[0_10px_26px_rgba(245,158,11,0.35)] active:scale-[0.97] cursor-pointer',
                           purchaseShakeFeatureId === feature.id ? 'hypno-shake' : '',
                         ].join(' ')}
                       >
-                        购买 {purchasePricePoints} PT
+                        购买
                       </button>
                     )}
                     <div
@@ -1016,11 +1007,8 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
               </div>
             </div>
 
-            {/* Right: Points */}
-            <div className="flex flex-col items-end min-w-[50px]">
-              <span className="text-white font-bold text-lg leading-none">{userData.ptPoints}</span>
-              <span className="text-[9px] text-gray-500 uppercase tracking-wider">PTS</span>
-            </div>
+            {/* Right: Points 区域已废弃，预留空位 */}
+            <div className="flex flex-col items-end min-w-[50px]"></div>
           </div>
 
           {/* Dropdown Handle Indicator */}
@@ -1043,14 +1031,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
         >
           <div className="px-4 pb-4 pt-2">
             {/* Secondary Stats */}
-            <div className="grid grid-cols-1 gap-2 mb-4">
-              <div className="bg-black/30 rounded-lg p-2 text-center border border-white/5">
-                <div className="text-[10px] text-gray-400 mb-1">可疑度</div>
-                <div className={`text-sm font-semibold ${userData.suspicion > 50 ? 'text-red-400' : 'text-green-400'}`}>
-                  {userData.suspicion}%
-                </div>
-              </div>
-            </div>
+            {/* 可疑度系统已移除，此处布局留空或可放其他信息 */}
 
             {/* Subscription Area */}
             <div className="mt-4 space-y-2">
@@ -1076,17 +1057,17 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                     <button
                       key={tier}
                       onClick={() => void subscribeTier(tier)}
-                      disabled={debugEnabled || lockedByUnlock || isCurrent || userData.ptPoints < price}
+                      disabled={debugEnabled || lockedByUnlock || isCurrent}
                       className="w-full flex items-center justify-between p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <div className="flex flex-col items-start">
                         <div className="text-xs font-bold text-gray-100">{tier}</div>
                         <div className="text-[10px] text-gray-400">
                           {lockedByUnlock
-                            ? `需要 ${DataService.getSubscriptionUnlockThreshold(tier)} PT`
+                            ? '尚未满足解锁条件'
                             : isCurrent
                               ? '已永久解锁'
-                              : `${price} PT 购买`}
+                              : '点击解锁'}
                         </div>
                       </div>
                       <div className="text-[10px] font-bold text-yellow-300">{lockedByUnlock ? '未解锁' : label}</div>

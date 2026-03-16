@@ -19,10 +19,7 @@ const CHAT_OPTION = { type: 'chat' } as const;
 /** 与主卡 MVU 隔离的命名空间前缀（外挂模式，不干扰其他 MVU 卡） */
 const MVU_PREFIX = '催眠APP';
 
-const DEFAULT_USER_DATA: UserResources = {
-  ptPoints: 25,
-  suspicion: 0,
-};
+const DEFAULT_USER_DATA: UserResources = {};
 
 const FEATURES: HypnosisFeature[] = [
   // TRIAL
@@ -519,11 +516,6 @@ function toFiniteNumber(value: unknown): number | null {
 }
 
 function normalizeSystemAliases(systemRaw: Record<string, any>) {
-  const existingPt = toFiniteNumber(systemRaw.当前PT点);
-  if (existingPt === null) {
-    const oldMc = toFiniteNumber(systemRaw.当前MC点);
-    if (oldMc !== null) systemRaw.当前PT点 = oldMc;
-  }
   return systemRaw;
 }
 
@@ -543,42 +535,34 @@ function findQuestDefinitionById(id: string, store: PersistedStore): QuestDefini
   return customDef ?? null;
 }
 
-/** 会员购买价格（PT 点，一次性支付永久解锁）。为原周订阅 PT 的 5 倍。 */
+/** 会员购买价格配置（不再参与点数结算，仅作参考） */
 export const SUBSCRIPTION_PRICES: Record<SubscriptionTier, number> = {
-  VIP1: 150,
-  VIP2: 300,
-  VIP3: 500,
-  VIP4: 1000,
-  VIP5: 2000,
+  VIP1: 0,
+  VIP2: 0,
+  VIP3: 0,
+  VIP4: 0,
+  VIP5: 0,
 };
 
-function parseVirtualMinutesFrom(dateText?: string, timeText?: string): number | null {
-  if (!dateText || !timeText) return null;
-  const dateMatch = dateText.match(/(\d+)\s*月\s*(\d+)\s*日/);
+function parseVirtualMinutesFrom(_dateText?: string, timeText?: string): number | null {
+  if (!timeText) return null;
   const timeMatch = timeText.match(/(\d{1,2})\s*:\s*(\d{1,2})(?:\s*:\s*(\d{1,2}))?/);
-  if (!dateMatch || !timeMatch) return null;
+  if (!timeMatch) return null;
 
-  const month = Number(dateMatch[1]);
-  const day = Number(dateMatch[2]);
   const hours = Number(timeMatch[1]);
   const minutes = Number(timeMatch[2]);
   const seconds = timeMatch[3] === undefined ? 0 : Number(timeMatch[3]);
-  if (![month, day, hours, minutes].every(Number.isFinite)) return null;
+  if (![hours, minutes].every(Number.isFinite)) return null;
   if (!Number.isFinite(seconds)) return null;
-
-  const monthDays = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  const mIndex = Math.max(1, Math.min(12, month)) - 1;
-  const dIndex = Math.max(1, Math.min(monthDays[mIndex], day)) - 1;
-  const dayOfYear = monthDays.slice(0, mIndex).reduce((a, b) => a + b, 0) + dIndex;
 
   const h = Math.max(0, Math.min(23, hours));
   const min = Math.max(0, Math.min(59, minutes));
   const sec = Math.max(0, Math.min(59, seconds));
-  return dayOfYear * 24 * 60 + h * 60 + min + sec / 60;
+  return h * 60 + min + sec / 60;
 }
 
 function getSystemClockFrom(system: Record<string, any> | null | undefined) {
-  const dateText = typeof system?.当前日期 === 'string' ? system.当前日期 : undefined;
+  const dateText = undefined;
   const timeText = typeof system?.当前时间 === 'string' ? system.当前时间 : undefined;
   return {
     dateText,
@@ -608,8 +592,6 @@ async function getRolesAndSystemSnapshot(): Promise<{ system: Record<string, any
 }
 
 type SystemWithStore = {
-  当前PT点: number;
-  主角可疑度: number;
   当前地点?: string;
   _hypnoos?: PersistedStore;
   [key: string]: any;
@@ -617,8 +599,6 @@ type SystemWithStore = {
 
 const SYSTEM_SCHEMA: z.ZodType<SystemWithStore> = z
   .object({
-    当前PT点: z.coerce.number().default(DEFAULT_USER_DATA.ptPoints),
-    主角可疑度: z.coerce.number().default(DEFAULT_USER_DATA.suspicion),
     当前地点: z.string().optional(),
     _hypnoos: STORE_SCHEMA.optional(),
   })
@@ -626,10 +606,8 @@ const SYSTEM_SCHEMA: z.ZodType<SystemWithStore> = z
   .default({} as SystemWithStore);
 
 function systemToUserResources(system: SystemWithStore): UserResources {
-  return {
-    ptPoints: Math.max(0, system.当前PT点),
-    suspicion: Math.max(0, system.主角可疑度),
-  };
+  void system;
+  return DEFAULT_USER_DATA;
 }
 
 function normalizeChatVariables(variables: Record<string, any>) {
@@ -659,34 +637,7 @@ async function updateStoreWith(updater: (store: PersistedStore) => PersistedStor
 }
 
 const STATIC_ACHIEVEMENTS: Array<Omit<Achievement, 'isClaimed'>> = [
-  {
-    id: 'ach_newbie',
-    title: '初次接触',
-    description: '持有 PT 达到 10。',
-    rewardPtPoints: 5,
-    checkCondition: u => u.ptPoints >= 10,
-  },
-  {
-    id: 'ach_vip2',
-    title: '进阶会员',
-    description: '持有 PT 达到 100。',
-    rewardPtPoints: 20,
-    checkCondition: u => u.ptPoints >= 100,
-  },
-  {
-    id: 'ach_rich',
-    title: '点数充裕',
-    description: '持有 PT 超过 500。',
-    rewardPtPoints: 10,
-    checkCondition: u => u.ptPoints >= 500,
-  },
-  {
-    id: 'ach_sus',
-    title: '隐秘行动',
-    description: '将可疑度控制在 5% 以下。',
-    rewardPtPoints: 50,
-    checkCondition: u => u.suspicion <= 5,
-  },
+  // 点数相关的固定成就已移除
 ];
 
 async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<Omit<Achievement, 'isClaimed'>>> {
@@ -702,16 +653,7 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
     checkCondition: () => Boolean(store.hasUsedHypnosis),
   });
 
-  const suspicion = toFiniteNumber(system?.主角可疑度) ?? 0;
-  for (const t of [25, 50, 75, 100]) {
-    achievements.push({
-      id: makeAchievementId('ach_suspicion', String(t)),
-      title: `主角可疑度达到 ${t}`,
-      description: `主角可疑度达到 ${t}%（${MVU_PREFIX}.系统.主角可疑度）`,
-      rewardPtPoints: t,
-      checkCondition: () => suspicion >= t,
-    });
-  }
+  // 主角可疑度相关成就已移除
 
   const sensitivityThresholds = [200, 300, 400, 500];
   const orgasmThresholds = [1, 5, 25, 100];
@@ -723,24 +665,6 @@ async function buildRoleBasedAchievements(store: PersistedStore): Promise<Array<
     const roleData = roleDataRaw as Record<string, any>;
 
     const guard = toFiniteNumber(roleData['警戒度']) ?? 0;
-    const obey = toFiniteNumber(roleData['堕落值']) ?? 0;
-
-    for (const t of percentThresholds) {
-      achievements.push({
-        id: makeAchievementId('ach_role_guard', roleName, String(t)),
-        title: `${roleName} 警戒度达到 ${t}`,
-        description: `${roleName} 的警戒度达到 ${t}（${MVU_PREFIX}.角色.${roleName}.警戒度）`,
-        rewardPtPoints: t,
-        checkCondition: () => guard >= t,
-      });
-      achievements.push({
-        id: makeAchievementId('ach_role_obey', roleName, String(t)),
-        title: `${roleName} 堕落值达到 ${t}`,
-        description: `${roleName} 的堕落值达到 ${t}（${MVU_PREFIX}.角色.${roleName}.堕落值）`,
-        rewardPtPoints: t,
-        checkCondition: () => obey >= t,
-      });
-    }
 
     const sensitivityKeys = Object.keys(roleData).filter(k => k.includes('敏感度'));
     for (const key of sensitivityKeys) {
@@ -800,19 +724,9 @@ function getSubscriptionTierLabel(subscription: SubscriptionState | null): strin
 }
 
 async function syncSubscriptionTierLabel(): Promise<void> {
-  const { system, store } = normalizeChatVariables(getVariables(CHAT_OPTION));
+  const { store } = normalizeChatVariables(getVariables(CHAT_OPTION));
   const subscription = (store.subscription as SubscriptionState | undefined) ?? null;
   const desired = getSubscriptionTierLabel(subscription);
-  if (system._催眠APP订阅等级 === desired) return;
-
-  updateVariablesWith(vars => {
-    const { system: nextSystem } = normalizeChatVariables(vars);
-    nextSystem._催眠APP订阅等级 = desired;
-    if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
-    vars[MVU_PREFIX].系统 = nextSystem;
-    return vars;
-  }, CHAT_OPTION);
-
   await MvuBridge.syncSubscriptionTier(desired);
 }
 
@@ -873,10 +787,8 @@ export const DataService = {
 
     if (user) {
       updateVariablesWith(vars => {
-        const { system, store } = normalizeChatVariables(vars);
-        system.当前PT点 = user.ptPoints;
-        system.主角可疑度 = user.suspicion;
-        system._hypnoos = store;
+      const { system, store } = normalizeChatVariables(vars);
+      system._hypnoos = store;
         if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
         vars[MVU_PREFIX].系统 = system;
         return vars;
@@ -974,31 +886,18 @@ export const DataService = {
       delete next.subscription;
       return next;
     });
-    updateVariablesWith(vars => {
-      const { system } = normalizeChatVariables(vars);
-      if (system._催眠APP订阅等级 === SUBSCRIPTION_TIER_TRIAL_LABEL) return vars;
-      system._催眠APP订阅等级 = SUBSCRIPTION_TIER_TRIAL_LABEL;
-      if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
-      vars[MVU_PREFIX].系统 = system;
-      return vars;
-    }, CHAT_OPTION);
     await MvuBridge.syncSubscriptionTier(SUBSCRIPTION_TIER_TRIAL_LABEL);
   },
 
-  /** 购买制：一次性支付 PT 永久解锁该档位。 */
+  /** 购买制：一次性确认即可永久解锁该档位（已不再扣减点数）。 */
   subscribeOrRenew: async (params: {
     tier: SubscriptionTier;
     nowVirtualMinutes?: number | null;
   }): Promise<{ ok: boolean; message?: string; subscription?: SubscriptionState | null }> => {
     const { tier } = params;
     const pricePt = SUBSCRIPTION_PRICES[tier];
+    void pricePt;
     const user = await DataService.getUserData();
-    if (user.ptPoints < pricePt) return { ok: false, message: 'PT 点不足' };
-
-    await DataService.updateResources({
-      ptPoints: user.ptPoints - pricePt,
-    });
-
     const nextSub: SubscriptionState = { tier };
 
     const next = await updateStoreWith(store => ({
@@ -1007,14 +906,6 @@ export const DataService = {
       purchases: { ...store.purchases, vip1_stats: true },
     }));
 
-    updateVariablesWith(vars => {
-      const { system } = normalizeChatVariables(vars);
-      if (system._催眠APP订阅等级 === tier) return vars;
-      system._催眠APP订阅等级 = tier;
-      if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
-      vars[MVU_PREFIX].系统 = system;
-      return vars;
-    }, CHAT_OPTION);
     await MvuBridge.syncSubscriptionTier(tier);
 
     return { ok: true, subscription: (next.subscription as SubscriptionState | undefined) ?? null };
@@ -1048,13 +939,8 @@ export const DataService = {
     const storeBefore = await updateStoreWith(s => s);
     if (storeBefore.purchases?.[id]) return { ok: false, message: '已购买' };
 
-    const user = await DataService.getUserData();
-    if (user.ptPoints < price) return { ok: false, message: `PT点不足：需要 ${price} PT` };
-
     await updateStoreWith(store => ({ ...store, purchases: { ...store.purchases, [id]: true } }));
-    const nextUser = await DataService.updateResources({
-      ptPoints: user.ptPoints - price,
-    });
+    const nextUser = await DataService.getUserData();
 
     return { ok: true, user: nextUser };
   },
@@ -1071,14 +957,9 @@ export const DataService = {
   updateResources: async (newData: Partial<UserResources>): Promise<UserResources> => {
     const base = await DataService.getUserData();
     const draft: UserResources = { ...base, ...newData };
-    const merged: UserResources = {
-      ptPoints: Math.max(0, draft.ptPoints),
-      suspicion: Math.max(0, draft.suspicion),
-    };
+    const merged: UserResources = { ...draft };
     updateVariablesWith(vars => {
       const { system, store } = normalizeChatVariables(vars);
-      system.当前PT点 = merged.ptPoints;
-      system.主角可疑度 = merged.suspicion;
       system._hypnoos = store;
       if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
       vars[MVU_PREFIX].系统 = system;
@@ -1246,8 +1127,7 @@ export const DataService = {
     if (!taskState || typeof taskState !== 'object' || taskState.已完成 !== true)
       return { success: false, newPoints: currentPoints };
 
-    const newPoints = currentPoints + def.rewardPtPoints;
-    await DataService.updateResources({ ptPoints: newPoints });
+    const newPoints = currentPoints;
     await updateStoreWith(s => ({ ...s, quests: { ...s.quests, [id]: 'CLAIMED' } }));
     await MvuBridge.deleteTask(def.name);
     return { success: true, newPoints };
@@ -1284,7 +1164,7 @@ export const DataService = {
     });
 
     try {
-      await MvuBridge.appendThisTurnAppOperationLog?.(`发布自定义任务「${trimmedName}」（奖励 ${rewardPtPoints} PT）`);
+      await MvuBridge.appendThisTurnAppOperationLog?.(`发布自定义任务「${trimmedName}」`);
     } catch {
       // ignore
     }

@@ -29,8 +29,6 @@ export const CharacterRegistryApp: React.FC<CharacterRegistryAppProps> = ({ onBa
       // 仅在 APP 内创建该角色的数值档案，不写入外部
       await MvuBridge.createRoleIfMissing(trimmedName, {
         好感度: 0,
-        警戒度: 0,
-        堕落值: 0,
         性欲: 0,
         快感值: 0,
         阴蒂敏感度: 100,

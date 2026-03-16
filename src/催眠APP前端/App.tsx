@@ -12,10 +12,7 @@ import { DataService } from './services/dataService';
 import { waitForMvuReady } from './services/mvuBridge';
 import { AppMode, UserResources } from './types';
 
-const FALLBACK_USER_DATA: UserResources = {
-  ptPoints: 25,
-  suspicion: 0,
-};
+const FALLBACK_USER_DATA: UserResources = {};
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;

@@ -61,8 +61,6 @@ function clampPercent(value: unknown): number | null {
 }
 
 const STAT_ORDER: string[] = [
-  '警戒度',
-  '堕落值',
   '好感度',
   '性欲',
   '快感值',
@@ -78,7 +76,7 @@ const STAT_ORDER: string[] = [
   '乳头高潮次数',
 ];
 
-const BAR_STATS = new Set(['警戒度', '堕落值', '好感度', '性欲', '快感值']);
+const BAR_STATS = new Set(['好感度', '性欲', '快感值']);
 
 const CLOTHING_KEYS = ['头饰', '上衣', '内衣', '下着', '鞋袜'] as const;
 
@@ -398,9 +396,9 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </div>
               <div className="flex-1">
                 <div className="text-sm font-bold">检测模块未授权</div>
-                <div className="text-xs text-white/60 mt-1 leading-relaxed">
-                  该模块属于 VIP1「角色状态可视化」。解锁后可查看警戒度、堕落值、性欲、快感值等量化数据与明细项。
-                </div>
+              <div className="text-xs text-white/60 mt-1 leading-relaxed">
+                  该模块属于 VIP1「角色状态可视化」。解锁后可查看性欲、快感值等量化数据与明细项。
+              </div>
               </div>
             </div>
           </div>
@@ -546,11 +544,7 @@ const StatRow: React.FC<{ label: string; value: unknown }> = ({ label, value }) 
   const numeric = typeof value === 'number' ? value : Number(value);
   const percent = clampPercent(Number.isFinite(numeric) ? numeric : 0) ?? 0;
   const color =
-    label === '警戒度'
-      ? 'from-red-500 to-amber-400'
-      : label === '堕落值'
-        ? 'from-emerald-400 to-cyan-400'
-        : label === '好感度'
+    label === '好感度'
           ? 'from-pink-400 to-rose-400'
           : label === '性欲'
             ? 'from-fuchsia-400 to-cyan-400'
@@ -652,44 +646,20 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     () => [
       {
         id: 'core-stats',
-        title: '核心数值说明（PT/警戒/服从/可疑）',
+        title: '核心数值说明（服从等）',
         content: (
           <div className="space-y-3">
-            <HelpSection title="PT 点">用来解锁功能、订阅会员等。主要来源为完成任务。</HelpSection>
-            <HelpSection title="警戒度">
-              <div className="space-y-2">
-                <div>
-                  角色对主角的怀疑程度。到 100 时，角色会知道主角有催眠 APP，会极力回避主角，并全力让主角被惩罚或定罪。
-                </div>
-                <div>
-                  增加来源：
-                  <ul className="mt-1 list-disc pl-5 space-y-1">
-                    <li>催眠结束时，对方眼前是主角且身体感觉不对劲</li>
-                    <li>催眠过程被其他人看见</li>
-                    <li>让对方进入催眠的时机太不自然</li>
-                  </ul>
-                </div>
-                <div>每增加 5 点警戒度，会让「主角可疑度」每天自然增加 1 点。</div>
-              </div>
-            </HelpSection>
-            <HelpSection title="堕落值">
-              在催眠 APP 生效期间被进行的性爱与背德行为在「本轮 APP 操作」结束时结算，按本次行为整体增加 0～3 点。
-              长时间不使用 APP 时，堕落值每天会自然降低 1 点（不低于 0），达到 80 及以上时不再自然下降。
-            </HelpSection>
-            <HelpSection title="主角可疑度">
-              在社会看来主角有多可疑。肆无忌惮使用催眠 APP 会增加（例如被多人目击，或直接用催眠获取不当利益）。每天自然减少
-              10 点。
-            </HelpSection>
-            <HelpSection title="PT 来源">
-              PT 点主要来自完成任务（成就与任务 App 中领取）。用于订阅、商城等。
+            <HelpSection title="基础功能">用于解锁 APP 内各类能力、功能分区和可视化模块。</HelpSection>
+            <HelpSection title="挑战说明">
+              可以通过完成各种挑战与成就，解锁更多玩法内容与提示信息。
             </HelpSection>
           </div>
         ),
       },
       {
         id: 'pt-points',
-        title: '如何获取 PT 点数？',
-        content: <div className="text-sm text-gray-600">通过完成成就、任务获得 PT。</div>,
+        title: '挑战与成就有什么用？',
+        content: <div className="text-sm text-gray-600">用于引导玩法进度与记录里程碑，不再提供数值奖励。</div>,
       },
       {
         id: 'character-registry',

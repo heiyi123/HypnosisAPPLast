@@ -9,8 +9,6 @@ interface CustomQuestAppProps {
   onBack: () => void;
 }
 
-const CUSTOM_QUEST_REWARD_PT = 50;
-
 export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpdateUser, onBack }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -48,7 +46,7 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
 
       void DataService.getUserData().then(next => onUpdateUser(next));
 
-      showNotice('已发布任务，可在「成就和任务」中接取');
+      showNotice('已发布挑战，可在「成就与挑战」中查看');
       setTitle('');
       setDescription('');
     } catch (err) {
@@ -67,20 +65,18 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
             <ArrowLeft className="text-gray-300" size={20} />
           </button>
           <div>
-            <h1 className="text-lg font-bold tracking-wide">任务发布</h1>
-            <p className="text-xs text-gray-400">自定义任务并发布到任务列表中，奖励固定 {CUSTOM_QUEST_REWARD_PT} PT</p>
+            <h1 className="text-lg font-bold tracking-wide">挑战发布</h1>
+            <p className="text-xs text-gray-400">自定义挑战并发布到列表中，用于引导后续玩法。</p>
           </div>
         </div>
-        <div className="text-xs text-gray-300">
-          当前 PT：<span className="font-bold text-emerald-300">{userData.ptPoints}</span>
-        </div>
+        <div className="text-xs text-gray-300"></div>
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
         <section className="space-y-2 bg-white/5 rounded-xl p-3 border border-white/10">
           <label className="flex flex-col gap-1 text-xs">
             <span className="text-gray-300">
-              任务名称 <span className="text-red-400">*</span>
+              挑战名称 <span className="text-red-400">*</span>
             </span>
             <input
               value={title}
@@ -92,7 +88,7 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
 
           <label className="flex flex-col gap-1 text-xs">
             <span className="text-gray-300">
-              任务内容 / 完成条件 <span className="text-red-400">*</span>
+              挑战内容 / 完成条件 <span className="text-red-400">*</span>
             </span>
             <textarea
               value={description}
@@ -110,8 +106,7 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
             <div className="space-y-1">
               <div className="font-bold">说明</div>
               <p>
-                发布免费，完成奖励固定为 {CUSTOM_QUEST_REWARD_PT} PT。任务发布后会出现在「成就和任务」App
-                的任务列表中。在剧情中完成该任务后，即可在任务界面领取奖励 PT。
+                发布免费，挑战发布后会出现在相关列表中。在剧情中完成该挑战后，可以在成就与挑战界面进行标记。
               </p>
             </div>
           </div>
@@ -141,3 +136,4 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
     </div>
   );
 };
+

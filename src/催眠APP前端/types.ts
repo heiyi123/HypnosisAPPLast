@@ -12,11 +12,8 @@ export enum AppMode {
   SHOP = 'SHOP',
 }
 
-// User Resources Data Structure（仅 PT 解锁，无 MC 能量与累计消耗）
-export interface UserResources {
-  ptPoints: number;
-  suspicion: number; // 0-100
-}
+// User Resources Data Structure（已不再使用点数系统）
+export interface UserResources {}
 
 // Hypnosis Feature Definition
 export interface HypnosisFeature {
@@ -32,7 +29,7 @@ export interface HypnosisFeature {
   userNumber?: number; // Numeric input for some features
   isEnabled: boolean; // Toggle state
   purchaseRequired?: boolean; // Must be permanently purchased to use
-  purchasePricePoints?: number; // Price in PT points for purchase
+  purchasePricePoints?: number; // 已不再使用点数系统
   isPurchased?: boolean; // Permanently purchased (or free to use)
 }
 
@@ -70,7 +67,7 @@ export interface SessionStartPayload {
   globalNote: string;
 }
 
-// VIP Tier Config（subscriptionPricePt：支付该 PT 数即可解锁该档位）
+// VIP Tier Config（不再进行点数结算，仅作为显示配置）
 export interface VipTierConfig {
   tier: string;
   subscriptionPricePt: number;

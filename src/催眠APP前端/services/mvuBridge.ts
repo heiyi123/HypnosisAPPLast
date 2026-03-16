@@ -173,20 +173,13 @@ export const MvuBridge = {
     });
   },
 
-  syncUserResources: async (user: UserResources) => {
+  syncUserResources: async (_user: UserResources) => {
     return enqueueMvuWrite(async () => {
       const data = await getMvuData();
       if (!data) return;
 
-      const { mvu, option } = data;
-      let changed = false;
-
-      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统.当前PT点`, user.ptPoints)) changed = true;
-      if (await setIfChanged(mvu, `${MVU_PREFIX}.系统.主角可疑度`, user.suspicion)) changed = true;
-
-      if (changed) {
-        await Mvu.replaceMvuData(mvu, option);
-      }
+      // 点数系统已移除，这里不再写入资源，仅保持接口存在以兼容调用。
+      void data;
     });
   },
 
@@ -233,18 +226,9 @@ export const MvuBridge = {
     });
   },
 
-  syncSubscriptionTier: async (tierLabel: string) => {
-    return enqueueMvuWrite(async () => {
-      if (typeof (globalThis as any).Mvu === 'undefined') return;
-      const data = await getMvuData();
-      if (!data) return;
-
-      const { mvu, option } = data;
-      const changed = await setIfChanged(mvu, `${MVU_PREFIX}.系统._催眠APP订阅等级`, tierLabel);
-      if (changed) {
-        await Mvu.replaceMvuData(mvu, option);
-      }
-    });
+  syncSubscriptionTier: async (_tierLabel: string) => {
+    // 订阅等级变量已移除，此处保留空实现以兼容旧调用。
+    return;
   },
 
   resetThisTurnAppOperationLog: async () => {

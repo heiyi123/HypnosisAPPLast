@@ -87,12 +87,10 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
 
   const handleClaimAchievement = async (ach: Achievement) => {
     if (ach.isClaimed) return;
-    // Client-side validation using passed userData
     if (!ach.checkCondition(userData)) return;
 
-    const result = await DataService.claimAchievement(ach.id, userData.ptPoints);
+    const result = await DataService.claimAchievement(ach.id, 0);
     if (result.success) {
-      onUpdateUser({ ...userData, ptPoints: result.newPoints });
       setAchievements(prev => prev.map(a => (a.id === ach.id ? { ...a, isClaimed: true } : a)));
     }
   };
@@ -124,14 +122,13 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
   };
 
   const handleClaimQuest = async (quest: Quest) => {
-    const result = await DataService.claimQuest(quest.id, userData.ptPoints);
+    const result = await DataService.claimQuest(quest.id, 0);
     if (!result.success) {
-      setNotice('任务尚未完成');
+      setNotice('挑战尚未完成');
       setTimeout(() => setNotice(null), 2000);
       return;
     }
-    onUpdateUser({ ...userData, ptPoints: result.newPoints });
-    setNotice(`任务完成：+${quest.rewardPtPoints} PT`);
+    setNotice('挑战完成');
     setTimeout(() => setNotice(null), 2000);
     requestRefresh();
   };
@@ -166,12 +163,9 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
           <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition-colors">
             <ArrowLeft className="text-gray-300" size={20} />
           </button>
-          <h1 className="text-lg font-bold tracking-wide">成就和任务</h1>
+          <h1 className="text-lg font-bold tracking-wide">成就与挑战</h1>
         </div>
-        <div className="flex items-center gap-1.5 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-          <Star size={14} className="text-amber-400 fill-amber-400" />
-          <span className="text-sm font-bold text-amber-100">{userData.ptPoints}</span>
-        </div>
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-transparent"></div>
       </div>
 
       {/* Tabs */}
@@ -184,7 +178,7 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
               : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
         >
-          <Trophy size={16} /> 成就列表
+          <Trophy size={16} /> 成就
         </button>
         <button
           onClick={() => setActiveTab('QUESTS')}
@@ -194,7 +188,7 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
               : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
         >
-          <Scroll size={16} /> 任务
+          <Scroll size={16} /> 挑战
         </button>
       </div>
 
@@ -244,17 +238,17 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
 
                     {/* Action Button */}
                     {ach.isClaimed ? (
-                      <span className="text-xs font-medium text-gray-500 py-1 px-2">已领取</span>
+                      <span className="text-xs font-medium text-gray-500 py-1 px-2">已记录</span>
                     ) : isUnlocked ? (
                       <button
                         onClick={() => handleClaimAchievement(ach)}
                         className="bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold py-1.5 px-3 rounded-lg shadow-lg flex items-center gap-1 animate-pulse"
                       >
-                        <Gift size={12} />领 {ach.rewardPtPoints} PT
+                        <Gift size={12} /> 标记完成
                       </button>
                     ) : (
                       <div className="flex flex-col items-end">
-                        <span className="text-xs font-bold text-indigo-400/50">+{ach.rewardPtPoints} PT</span>
+                        <span className="text-xs font-bold text-indigo-400/50">待达成</span>
                       </div>
                     )}
                   </div>
@@ -270,7 +264,7 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
             <div className="flex items-center justify-between text-[11px] text-white/60 px-1">
               <div className="flex items-center gap-2">
                 <Scroll size={14} className="text-white/60" />
-                <span>可接取/进行中任务</span>
+                <span>可接取/进行中挑战</span>
               </div>
               <div className="text-white/60">
                 同时进行：<span className="text-white font-bold">{activeQuestCount}</span>/3
@@ -327,7 +321,6 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
                           </span>
                         </h3>
                         <p className="text-xs text-gray-400 mt-1 pr-4">完成条件：{q.description}</p>
-                        <div className="text-[10px] text-amber-200/80 mt-2 font-bold">奖励：+{q.rewardPtPoints} PT</div>
                       </div>
                     </div>
 
@@ -368,7 +361,7 @@ export const AchievementApp: React.FC<AchievementAppProps> = ({ userData, onUpda
 
             {quests.length === 0 && (
               <div className="p-5 rounded-2xl border border-white/10 bg-white/5 text-xs text-white/60">
-                当前没有可用任务。
+                当前没有可用挑战。
               </div>
             )}
           </div>

@@ -1,5 +1,0 @@
-现在的时间是: {{get_message_variable::系统.当前时间}}
-现在的地点是: {{get_message_variable::系统.当前地点}}
-{{user}}的日程是: {{get_message_variable::系统.当前日程}}
-现在或即将发生的事件是: {{get_message_variable::系统.当前或下个事件}}
----
