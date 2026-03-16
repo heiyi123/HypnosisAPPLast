@@ -94,7 +94,7 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [error, setError] = useState<string | null>(null);
   const [hypnosisExperiences, setHypnosisExperiences] = useState<string[]>([]);
 
-  const refreshRef = useRef<() => void>(() => { });
+  const refreshRef = useRef<() => void>(() => {});
   const selectorRef = useRef<HTMLDivElement | null>(null);
 
   const roleNames = useMemo(
@@ -117,7 +117,9 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
   useEffect(() => {
     if (detailPanel === '催眠经历') {
-      DataService.getHypnosisExperiences().then(setHypnosisExperiences).catch(() => setHypnosisExperiences([]));
+      DataService.getHypnosisExperiences()
+        .then(setHypnosisExperiences)
+        .catch(() => setHypnosisExperiences([]));
     }
   }, [detailPanel]);
 
@@ -156,8 +158,7 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const otherScalarEntries = useMemo(
     () =>
       nonBarEntries.filter(
-        ([k, v]) =>
-          isScalarValue(v) && !k.includes('敏感度') && !k.includes('高潮次数') && k !== '内心想法',
+        ([k, v]) => isScalarValue(v) && !k.includes('敏感度') && !k.includes('高潮次数') && k !== '内心想法',
       ),
     [nonBarEntries],
   );
@@ -396,9 +397,9 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </div>
               <div className="flex-1">
                 <div className="text-sm font-bold">检测模块未授权</div>
-              <div className="text-xs text-white/60 mt-1 leading-relaxed">
+                <div className="text-xs text-white/60 mt-1 leading-relaxed">
                   该模块属于 VIP1「角色状态可视化」。解锁后可查看性欲、快感值等量化数据与明细项。
-              </div>
+                </div>
               </div>
             </div>
           </div>
@@ -490,7 +491,10 @@ const BodyScanApp: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 ) : (
                   <ul className="space-y-2">
                     {hypnosisExperiences.map((line, i) => (
-                      <li key={i} className="text-[11px] text-white/85 leading-relaxed border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                      <li
+                        key={i}
+                        className="text-[11px] text-white/85 leading-relaxed border-b border-white/5 pb-2 last:border-0 last:pb-0"
+                      >
                         {line}
                       </li>
                     ))}
@@ -545,10 +549,10 @@ const StatRow: React.FC<{ label: string; value: unknown }> = ({ label, value }) 
   const percent = clampPercent(Number.isFinite(numeric) ? numeric : 0) ?? 0;
   const color =
     label === '好感度'
-          ? 'from-pink-400 to-rose-400'
-          : label === '性欲'
-            ? 'from-fuchsia-400 to-cyan-400'
-            : 'from-cyan-400 to-violet-400';
+      ? 'from-pink-400 to-rose-400'
+      : label === '性欲'
+        ? 'from-fuchsia-400 to-cyan-400'
+        : 'from-cyan-400 to-violet-400';
 
   return (
     <div className="p-3 rounded-xl border border-white/10 bg-black/20">
@@ -650,9 +654,7 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         content: (
           <div className="space-y-3">
             <HelpSection title="基础功能">用于解锁 APP 内各类能力、功能分区和可视化模块。</HelpSection>
-            <HelpSection title="挑战说明">
-              可以通过完成各种挑战与成就，解锁更多玩法内容与提示信息。
-            </HelpSection>
+            <HelpSection title="挑战说明">可以通过完成各种挑战与成就，解锁更多玩法内容与提示信息。</HelpSection>
           </div>
         ),
       },
@@ -669,9 +671,7 @@ const HelpAppInner: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <HelpSection title="作用">
               添加新角色到 APP 中。输入姓名即可，之后该角色会出现在角色列表中，可对其使用催眠、身体检测等功能。
             </HelpSection>
-            <HelpSection title="用法">
-              在「角色录入」页面填写角色姓名，点击确认录入。同一角色只需录入一次。
-            </HelpSection>
+            <HelpSection title="用法">在「角色录入」页面填写角色姓名，点击确认录入。同一角色只需录入一次。</HelpSection>
           </div>
         ),
       },

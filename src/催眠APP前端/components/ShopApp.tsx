@@ -35,15 +35,13 @@ const SHOP_ITEMS: ShopItem[] = [
     id: 'gadget_master_keycard',
     name: '万能身份卡',
     price: 14800,
-    description:
-      '黑客制作的高危道具，可以干扰大部分由电子系统控制的门禁，让门在短时间内强制解锁，使用后报废。',
+    description: '黑客制作的高危道具，可以干扰大部分由电子系统控制的门禁，让门在短时间内强制解锁，使用后报废。',
   },
   {
     id: 'gadget_pinhole_camera_singleuse',
     name: '针孔摄像机',
     price: 9800,
-    description:
-      '用于偷拍的小型装置，需要提前隐蔽安装。只能拍摄并保存一段影像，使用一次后即报废。',
+    description: '用于偷拍的小型装置，需要提前隐蔽安装。只能拍摄并保存一段影像，使用一次后即报废。',
   },
   {
     id: 'cos_small_prop',
@@ -101,15 +99,13 @@ const SHOP_ITEMS: ShopItem[] = [
     id: 'ero_cat_paw_gloves_lock',
     name: '猫抓手套',
     price: 8900,
-    description:
-      '特制的情趣手套，外观是毛绒猫抓。穿戴者必须手握拳伸入并上锁，双手都戴上后无法自行取下。',
+    description: '特制的情趣手套，外观是毛绒猫抓。穿戴者必须手握拳伸入并上锁，双手都戴上后无法自行取下。',
   },
   {
     id: 'ero_cat_paw_boots',
     name: '猫抓靴子',
     price: 11200,
-    description:
-      '特制的情趣靴子，外观是毛绒猫抓。内置高跟与厚软垫，让穿戴者必须垫脚站立，行走时极易失衡摔倒。',
+    description: '特制的情趣靴子，外观是毛绒猫抓。内置高跟与厚软垫，让穿戴者必须垫脚站立，行走时极易失衡摔倒。',
   },
   {
     id: 'ero_cat_tail_plug',
@@ -137,15 +133,13 @@ const SHOP_ITEMS: ShopItem[] = [
     id: 'drug_sleep_potion_halfday',
     name: '安眠药',
     price: 15800,
-    description:
-      '小瓶无色无味药水，可悄悄倒入饮料中。让目标熟睡约半天，期间几乎不会醒来。',
+    description: '小瓶无色无味药水，可悄悄倒入饮料中。让目标熟睡约半天，期间几乎不会醒来。',
   },
   {
     id: 'ero_pet_bondage_suit',
     name: '宠物拘束衣',
     price: 24800,
-    description:
-      '成套皮质情趣拘束衣。穿戴者需将大腿小腿并拢、小臂大臂并拢才能穿好并上锁，最终只能像动物一样四肢行走。',
+    description: '成套皮质情趣拘束衣。穿戴者需将大腿小腿并拢、小臂大臂并拢才能穿好并上锁，最终只能像动物一样四肢行走。',
   },
 ];
 
@@ -238,4 +232,3 @@ export const ShopApp: React.FC<ShopAppProps> = ({ userData, onUpdateUser, onBack
     </div>
   );
 };
-

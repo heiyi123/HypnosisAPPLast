@@ -197,10 +197,10 @@ function openFrontend() {
     // 前端在独立 iframe 中运行，需从本脚本所在窗口（角色卡上下文）注入酒馆 API
     const injectApisIntoFrontend = () => {
       try {
-        const win = iframe.contentWindow as Window & Record<string, unknown> | null;
+        const win = iframe.contentWindow as (Window & Record<string, unknown>) | null;
         if (!win) return;
-        const raw = (window as any);
-        const s = (raw.getVariables ? raw : raw.parent ?? raw.top ?? raw) as Record<string, unknown>;
+        const raw = window as any;
+        const s = (raw.getVariables ? raw : (raw.parent ?? raw.top ?? raw)) as Record<string, unknown>;
         if (typeof s.getVariables === 'function') win.getVariables = s.getVariables;
         if (typeof s.replaceVariables === 'function') win.replaceVariables = s.replaceVariables;
         if (typeof s.updateVariablesWith === 'function') win.updateVariablesWith = s.updateVariablesWith;

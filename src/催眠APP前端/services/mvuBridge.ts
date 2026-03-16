@@ -156,9 +156,9 @@ export const MvuBridge = {
       const raw = _.get(mvu.stat_data, path);
       const current = _.isPlainObject(raw) ? (raw as Record<string, any>) : {};
 
-      const prevEntry = (current[itemName] && typeof current[itemName] === 'object'
-        ? (current[itemName] as Record<string, any>)
-        : {}) as { 描述?: string; 数量?: number };
+      const prevEntry = (
+        current[itemName] && typeof current[itemName] === 'object' ? (current[itemName] as Record<string, any>) : {}
+      ) as { 描述?: string; 数量?: number };
 
       const nextCount = Math.max(0, (typeof prevEntry.数量 === 'number' ? prevEntry.数量 : 0) + Math.max(1, count));
       const nextEntry = {

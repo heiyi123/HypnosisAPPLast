@@ -105,9 +105,7 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
             <AlertTriangle size={14} className="mt-0.5 text-amber-300" />
             <div className="space-y-1">
               <div className="font-bold">说明</div>
-              <p>
-                发布免费，挑战发布后会出现在相关列表中。在剧情中完成该挑战后，可以在成就与挑战界面进行标记。
-              </p>
+              <p>发布免费，挑战发布后会出现在相关列表中。在剧情中完成该挑战后，可以在成就与挑战界面进行标记。</p>
             </div>
           </div>
         </section>
@@ -119,9 +117,10 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
           onClick={handleSubmit}
           disabled={submitting || !title.trim() || !description.trim()}
           className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold shadow-lg transition-all
-            ${submitting || !title.trim() || !description.trim()
-              ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
-              : 'bg-linear-to-r from-amber-400 to-rose-500 text-black hover:shadow-amber-500/40 active:scale-95'
+            ${
+              submitting || !title.trim() || !description.trim()
+                ? 'bg-gray-600 text-gray-300 cursor-not-allowed'
+                : 'bg-linear-to-r from-amber-400 to-rose-500 text-black hover:shadow-amber-500/40 active:scale-95'
             }`}
         >
           发布任务
@@ -136,4 +135,3 @@ export const CustomQuestApp: React.FC<CustomQuestAppProps> = ({ userData, onUpda
     </div>
   );
 };
-

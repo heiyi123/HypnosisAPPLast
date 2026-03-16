@@ -30,11 +30,7 @@ export function getSubscriptionPricePt(_tier: SubscriptionTier): number {
 
 export const getSubscriptionUnlockThreshold = getSubscriptionPricePt;
 
-export function canSubscribeTier(ctx: {
-  tier: SubscriptionTier;
-  debugEnabled: boolean;
-  ptPoints: number;
-}): boolean {
+export function canSubscribeTier(ctx: { tier: SubscriptionTier; debugEnabled: boolean; ptPoints: number }): boolean {
   void ctx;
   return true;
 }

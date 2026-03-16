@@ -1,12 +1,4 @@
-import {
-  ArrowLeft,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  Lock,
-  StopCircle,
-  Zap,
-} from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Clock, Lock, StopCircle, Zap } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { buildHypnosisSendMessage } from '../prompts/hypnosisSend';
@@ -504,16 +496,14 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
   const getFeatureNumericConfig = (
     feature: HypnosisFeature,
-  ):
-    | {
-      label: string;
-      unit: string;
-      min: number;
-      max: number;
-      step?: number;
-      hint?: string;
-    }
-    | null => {
+  ): {
+    label: string;
+    unit: string;
+    min: number;
+    max: number;
+    step?: number;
+    hint?: string;
+  } | null => {
     switch (feature.id) {
       case 'vip1_temp_sensitivity':
         return { label: '敏感度增加', unit: '点', min: 1, max: 999, step: 1, hint: '每点2MC能量' };
@@ -564,7 +554,6 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
     if (!subscription) return '未购买';
     return `VIP${subscription.tier.slice(3)} 已永久解锁`;
   }, [debugEnabled, subscription]);
-
 
   // --- Handlers ---
 
@@ -660,7 +649,10 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
           : f,
       ),
     );
-    void DataService.updateFeature(id, { isEnabled: nextEnabled, ...(nextNumber === null ? null : { userNumber: nextNumber }) });
+    void DataService.updateFeature(id, {
+      isEnabled: nextEnabled,
+      ...(nextNumber === null ? null : { userNumber: nextNumber }),
+    });
   };
 
   const updateFeatureNote = (id: string, note: string) => {
@@ -702,12 +694,14 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
       });
 
       const g = globalThis as typeof globalThis & Record<string, unknown>;
-      const createChatMessagesFn = typeof g.createChatMessages === 'function'
-        ? g.createChatMessages
-        : (g.parent as typeof g)?.['createChatMessages'] ?? (g.top as typeof g)?.['createChatMessages'];
-      const triggerSlashFn = typeof g.triggerSlash === 'function'
-        ? g.triggerSlash
-        : (g.parent as typeof g)?.['triggerSlash'] ?? (g.top as typeof g)?.['triggerSlash'];
+      const createChatMessagesFn =
+        typeof g.createChatMessages === 'function'
+          ? g.createChatMessages
+          : ((g.parent as typeof g)?.['createChatMessages'] ?? (g.top as typeof g)?.['createChatMessages']);
+      const triggerSlashFn =
+        typeof g.triggerSlash === 'function'
+          ? g.triggerSlash
+          : ((g.parent as typeof g)?.['triggerSlash'] ?? (g.top as typeof g)?.['triggerSlash']);
 
       if (typeof createChatMessagesFn === 'function' && typeof triggerSlashFn === 'function') {
         await createChatMessagesFn([{ role: 'user', message }], { refresh: 'affected' });
@@ -741,9 +735,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
 
   const handleStop = () => {
     // 结束前生成一句简述并写入「催眠经历」
-    const enabledForLog = features.filter(
-      f => f.isEnabled && f.id !== 'vip1_stats' && canUseEnabledFeature(f),
-    );
+    const enabledForLog = features.filter(f => f.isEnabled && f.id !== 'vip1_stats' && canUseEnabledFeature(f));
     const part = enabledForLog.length ? enabledForLog.map(f => f.title).join('、') : '基础';
     const sentence = `${duration}分钟催眠：${part}。${globalNote?.trim() ? `（${globalNote.trim()}）` : ''}`;
     void DataService.appendHypnosisExperience(sentence);
@@ -803,10 +795,11 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                 className={`
                  bg-white/5 border rounded-xl overflow-hidden transition-all duration-300
                  ${lockedBySubscription || lockedByPurchase ? 'opacity-80' : ''}
-                 ${feature.isEnabled && !lockedBySubscription && !lockedByPurchase
-                    ? 'border-pink-500/50 bg-pink-500/10 shadow-[0_0_15px_rgba(236,72,153,0.1)]'
-                    : 'border-white/10'
-                  }
+                 ${
+                   feature.isEnabled && !lockedBySubscription && !lockedByPurchase
+                     ? 'border-pink-500/50 bg-pink-500/10 shadow-[0_0_15px_rgba(236,72,153,0.1)]'
+                     : 'border-white/10'
+                 }
                `}
               >
                 <div
@@ -1063,11 +1056,7 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
                       <div className="flex flex-col items-start">
                         <div className="text-xs font-bold text-gray-100">{tier}</div>
                         <div className="text-[10px] text-gray-400">
-                          {lockedByUnlock
-                            ? '尚未满足解锁条件'
-                            : isCurrent
-                              ? '已永久解锁'
-                              : '点击解锁'}
+                          {lockedByUnlock ? '尚未满足解锁条件' : isCurrent ? '已永久解锁' : '点击解锁'}
                         </div>
                       </div>
                       <div className="text-[10px] font-bold text-yellow-300">{lockedByUnlock ? '未解锁' : label}</div>
@@ -1122,17 +1111,17 @@ export const HypnosisApp: React.FC<HypnosisAppProps> = ({ userData, onUpdateUser
             disabled={!hasSessionFeaturesEnabled}
             className={`
                  flex-1 py-3 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all
-                 ${hasSessionFeaturesEnabled
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-pink-500/25 active:scale-95'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              }
+                 ${
+                   hasSessionFeaturesEnabled
+                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-pink-500/25 active:scale-95'
+                     : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                 }
                `}
           >
             <Zap size={18} fill="currentColor" />
             启动催眠
           </button>
         </div>
-
       </div>
     </div>
   );

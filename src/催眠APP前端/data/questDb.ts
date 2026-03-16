@@ -252,31 +252,31 @@ export const QUEST_DB: QuestDefinition[] = [
     condition: '让夏美在公共场合只涂着人体彩绘。',
     rewardPtPoints: 45,
   },
-    {
+  {
     id: 'quest_roxy_dangerous_class',
     name: '危险课堂',
     condition: '让洛琪希在上课途中高潮。',
     rewardPtPoints: 30,
   },
-   {
+  {
     id: 'quest_roxy_dormitories_visit',
     name: '秘密查寝',
     condition: '让洛琪希在宿舍查寝期间和你做爱且不被发现。',
     rewardPtPoints: 40,
   },
-   {
+  {
     id: 'quest_roxy_table',
     name: '桌下秘密',
     condition: '在教师办公室有其他老师的情况下让洛琪希藏在她的办公桌下为你口交。',
     rewardPtPoints: 30,
   },
-   {
+  {
     id: 'quest_roxy_floating',
     name: '雌悬浮',
     condition: '在学校里抱着洛琪希做爱且全程不让洛琪希双脚着地。',
     rewardPtPoints: 30,
   },
-   {
+  {
     id: 'quest_roxy_sex_education',
     name: '性教育课',
     condition: '在保健体育课上和洛琪希现场做爱进行演示。',
@@ -294,43 +294,43 @@ export const QUEST_DB: QuestDefinition[] = [
     condition: '找到和泉纱雾的宿舍。',
     rewardPtPoints: 10,
   },
-   {
+  {
     id: 'quest_sagiri_secret',
     name: '她的秘密',
     condition: '掌握和泉纱雾就是工口漫画老师的证据。',
     rewardPtPoints: 20,
   },
-   {
+  {
     id: 'quest_sagiri_brother_wrong',
     name: '谁是哥哥',
     condition: '让和泉纱雾认为你是她的哥哥然后和你做爱。',
     rewardPtPoints: 30,
   },
-   {
+  {
     id: 'quest_sagiri_brother_sex',
     name: '兄妹乱伦？',
     condition: '让和泉纱雾和她的哥哥做爱。',
     rewardPtPoints: 30,
   },
-   {
+  {
     id: 'quest_sagiri_outside',
     name: '户外运动',
     condition: '让和泉纱雾在不被催眠的情况下离开宿舍楼。',
     rewardPtPoints: 30,
   },
-   {
+  {
     id: 'quest_sagiri_class',
     name: '网课时间',
     condition: '在和泉纱雾上网课期间和她做爱且不被网课老师发现。',
     rewardPtPoints: 40,
   },
-   {
+  {
     id: 'quest_sagiri_fans',
     name: '粉丝福利',
     condition: '让和泉纱雾在onlyfans上上传自己的色情写真',
     rewardPtPoints: 30,
   },
-   {
+  {
     id: 'quest_sagiri_fanslive',
     name: '直播时间',
     condition: '让和泉纱雾进行onlyfans直播并且直播和她做爱',

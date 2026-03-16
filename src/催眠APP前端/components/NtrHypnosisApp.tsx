@@ -101,10 +101,7 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
     setDuration(durationClamped);
   }, [durationClamped]);
 
-  const enabledForSend = useMemo(
-    () => features.filter(f => f.isEnabled && f.id !== 'vip1_stats'),
-    [features],
-  );
+  const enabledForSend = useMemo(() => features.filter(f => f.isEnabled && f.id !== 'vip1_stats'), [features]);
 
   const updateFeature = (id: string, patch: Partial<HypnosisFeature>) => {
     setFeatures(prev => prev.map(f => (f.id === id ? { ...f, ...patch } : f)));
@@ -158,9 +155,7 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
 
     return (
       <div key={tierConfig.tier} className="mb-6">
-        <h3 className="text-amber-300/90 font-bold text-sm tracking-wider uppercase mb-2 px-1">
-          {tierConfig.label}
-        </h3>
+        <h3 className="text-amber-300/90 font-bold text-sm tracking-wider uppercase mb-2 px-1">{tierConfig.label}</h3>
         <div className="space-y-3">
           {tierFeatures.map(feature => (
             <div
@@ -217,7 +212,9 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
                               }
                               const next = Number(raw);
                               if (!Number.isFinite(next)) return;
-                              updateFeature(feature.id, { userNumber: Math.max(cfg.min, Math.min(cfg.max, Math.floor(next))) });
+                              updateFeature(feature.id, {
+                                userNumber: Math.max(cfg.min, Math.min(cfg.max, Math.floor(next))),
+                              });
                             }}
                             className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50"
                             placeholder={`${cfg.min}-${cfg.max}`}
@@ -269,9 +266,7 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 no-scrollbar">
-        {VIP_LEVELS.map(tier => renderTierSection(tier))}
-      </div>
+      <div className="flex-1 overflow-y-auto p-4 no-scrollbar">{VIP_LEVELS.map(tier => renderTierSection(tier))}</div>
 
       {/* Footer */}
       <div className="bg-gray-900/95 backdrop-blur-xl border-t border-white/10 p-4 pb-8 rounded-t-2xl shrink-0 space-y-3">
@@ -325,9 +320,11 @@ export const NtrHypnosisApp: React.FC<NtrHypnosisAppProps> = ({ userData, onUpda
             disabled={enabledForSend.length === 0 || sending}
             className={`
               flex-1 py-3 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all
-              ${enabledForSend.length > 0 && !sending
-                ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:shadow-amber-500/25 active:scale-95'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'}
+              ${
+                enabledForSend.length > 0 && !sending
+                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:shadow-amber-500/25 active:scale-95'
+                  : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+              }
             `}
           >
             {sending ? '发送中…' : enabledForSend.length === 0 ? '请至少选择一项功能' : '生成事件'}

@@ -2,15 +2,15 @@ import { z } from 'zod';
 import { QUEST_DB, type QuestDefinition } from '../data/questDb';
 import { Achievement, HypnosisFeature, Quest, QuestStatus, UserResources } from '../types';
 import {
-    canSubscribeTier,
-    canUseFeature as canUseFeatureBySubscription,
-    getBodyStatsUnlocked,
-    getSubscriptionUnlockThreshold,
-    isSubscriptionActive,
-    SUBSCRIPTION_TIERS,
-    type AccessContext,
-    type SubscriptionState,
-    type SubscriptionTier,
+  canSubscribeTier,
+  canUseFeature as canUseFeatureBySubscription,
+  getBodyStatsUnlocked,
+  getSubscriptionUnlockThreshold,
+  isSubscriptionActive,
+  SUBSCRIPTION_TIERS,
+  type AccessContext,
+  type SubscriptionState,
+  type SubscriptionTier,
 } from './access';
 import { MvuBridge } from './mvuBridge';
 
@@ -787,8 +787,8 @@ export const DataService = {
 
     if (user) {
       updateVariablesWith(vars => {
-      const { system, store } = normalizeChatVariables(vars);
-      system._hypnoos = store;
+        const { system, store } = normalizeChatVariables(vars);
+        system._hypnoos = store;
         if (!vars[MVU_PREFIX]) vars[MVU_PREFIX] = {};
         vars[MVU_PREFIX].系统 = system;
         return vars;
@@ -1006,10 +1006,7 @@ export const DataService = {
     const claimed = store.quests ?? {};
     const tasks = (await MvuBridge.getTasks().catch(() => null)) ?? {};
 
-    const allDefs: QuestDefinition[] = [
-      ...QUEST_DATABASE,
-      ...(store.customQuests ?? []),
-    ];
+    const allDefs: QuestDefinition[] = [...QUEST_DATABASE, ...(store.customQuests ?? [])];
 
     const quests = allDefs.map(q => {
       const locked = claimed[q.id] === 'CLAIMED';
